@@ -15,9 +15,9 @@ typedef struct {
 } semaphore;
 
 // Queues
-List* high_priority;
-List* medium_priority;
-List* low_priority;
+List* high_priority; // priority = 0
+List* medium_priority; // priority = 1
+List* low_priority; // priority = 2
 List* send_queue;
 List* receive_queue;
 
