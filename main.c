@@ -8,6 +8,7 @@ static PCB* curr_running = NULL;
 
 // using for List_search function
 bool searchPid(void* pItem, void* pComparisonArg) {
+    // Return true if pid matches comparision arg
     if(((PCB*)pItem)->pid == *(int*)pComparisonArg){
         return true;
     }
@@ -56,6 +57,7 @@ int createPCB(int priority){
         strcpy(new_process->state, "running");
         curr_running = new_process;
     }
+    // If not the first process, put into appropriate priority queue
     else {
         if(priority == 0){
             List_prepend(high_priority, new_process);
@@ -67,11 +69,13 @@ int createPCB(int priority){
             List_prepend(low_priority, new_process);
         }
     }
-    List_append(all_pcb, new_process);
+    // Put into list of all jobs
+    List_prepend(all_jobs, new_process);
 }
 
 // fork (F command)
 int fork() {
+    // If no process is running or the current process is init process, fork fails
     if(curr_running == NULL){
         return 0;
     }
@@ -79,6 +83,7 @@ int fork() {
         return 0;
     }
 
+    // Otherwise, create new process and return pid
     int new_id = createPCB(curr_running->priority);
 
     return new_id;
