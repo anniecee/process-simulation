@@ -20,7 +20,7 @@ List* medium_priority; // priority = 1
 List* low_priority; // priority = 2
 List* send_queue;
 List* receive_queue;
-
+List* all_pcb;
 
 PCB init_process;
 
