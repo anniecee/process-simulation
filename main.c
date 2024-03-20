@@ -6,12 +6,24 @@
 static int id = 0;
 static PCB* curr_running = NULL;
 
+// using for List_search function
 bool searchPid(void* pItem, void* pComparisonArg) {
     if(((PCB*)pItem)->pid == *(int*)pComparisonArg){
         return true;
     }
     else{
         return false;
+    }
+}
+
+void checkInit() {
+    // Init process set to "running" if all priority queues are empty
+    if (List_count(high_priority) == 0 && List_count(medium_priority) == 0 && List_count(low_priority) == 0) {
+        strcpy(init_process.state, "running");
+    }
+    // Init process set to "ready" otherwise
+    else {
+        strcpy(init_process.state, "ready");
     }
 }
 
@@ -80,7 +92,7 @@ int kill(int pid) {
     }
 }
 
-
+// For testing purpose; might adjust into Totalinfo()
 void print(List* list){
     List_first(list);
     while(List_curr(list) != NULL){
@@ -100,6 +112,9 @@ int main() {
     printf("Please input your command and then enter. Input '!' to end program.\n");
 
     while(1){
+        // Check init process
+        checkInit();
+
         char command = getchar();
         while(getchar() != '\n'); // Clear input buffer
 
@@ -120,8 +135,41 @@ int main() {
         else if(command == 'K'){
             kill(3);
         }
-        else if(command = 'P'){
+        else if(command = 'O'){
             print(high_priority);
+        }
+        else if (command == 'E') {
+
+        }
+        else if (command == 'Q') {
+            
+        }
+        else if (command = 'S') {
+
+        }
+        else if (command == 'R') {
+
+        }
+        else if (command == 'Y') {
+
+        }
+        else if (command == 'N') {
+
+        }
+        else if (command == 'P') {
+
+        }
+        else if (command == 'V') {
+
+        }
+        else if (command == 'I') {
+
+        }
+        else if (command == 'T') {
+
+        }
+        else if (command == '!') {
+
         }
     }
 
