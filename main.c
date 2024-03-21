@@ -234,7 +234,6 @@ int semaphoreV(int sid) {
 
     // Increment value of semaphore
     searched_semaphore->value++;
-    printf("Value: %d", searched_semaphore->value);
 
     // Get a process from proc_list and wake it up
     if (searched_semaphore->value <= 0) {
@@ -244,8 +243,6 @@ int semaphoreV(int sid) {
         // Remove a process from proc_list & set it to ready
         PCB* waken_proc = List_trim(searched_semaphore->proc_list);
         strcpy(waken_proc->state, "ready");
-        printf("State (ready): %s", waken_proc->state);
-        printf("Priority: %d", waken_proc->priority);
 
         // Put the process on appropriate ready queue
         if (waken_proc->priority == 0){
