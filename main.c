@@ -198,6 +198,7 @@ int newSemaphore(int sid, int value) {
 int semaphoreP(int sid) {
     // Search for targeted semaphore
     semaphore* searched_semaphore = List_search(all_semaphores, searchSid, &sid);
+    if (searched_semaphore == NULL) { return 1; }
 
     // Decrement value of semaphore
     searched_semaphore->value--;
@@ -226,18 +227,40 @@ int semaphoreP(int sid) {
     return 0;
 }
 
-// int semaphoreV(int sid) {
-//     // Search for targeted semaphore
-//     void* searched_semaphore = List_search(all_semaphores, searchSid, &sid);
+int semaphoreV(int sid) {
+    // Search for targeted semaphore
+    semaphore* searched_semaphore = List_search(all_semaphores, searchSid, &sid);
+    if (searched_semaphore == NULL) { return 1; }
 
-//     // Increment value of semaphore
-//     searched_semaphore->value++;
+    // Increment value of semaphore
+    searched_semaphore->value++;
+    printf("Value: %d", searched_semaphore->value);
 
-//     // Get a process from proc_list and wake it up
-//     if (searched_semaphore->value <= 0) {
+    // Get a process from proc_list and wake it up
+    if (searched_semaphore->value <= 0) {
+        // Fail if proc_list is empty
+        if (List_count(searched_semaphore->proc_list) == 0) { return 1; }
 
-//     }
-// }
+        // Remove a process from proc_list & set it to ready
+        PCB* waken_proc = List_trim(searched_semaphore->proc_list);
+        strcpy(waken_proc->state, "ready");
+        printf("State (ready): %s", waken_proc->state);
+        printf("Priority: %d", waken_proc->priority);
+
+        // Put the process on appropriate ready queue
+        if (waken_proc->priority == 0){
+            List_prepend(high_priority, waken_proc);
+        }
+        else if (waken_proc->priority == 1){
+            List_prepend(medium_priority, waken_proc);
+        }
+        else {
+            List_prepend(low_priority, waken_proc);
+        }
+    }
+
+    return 0;
+}
 
 int main() {
 
@@ -357,20 +380,20 @@ int main() {
             }
         }
         if (command == 'V') {
-            // printf("You chose Semaphore V command. Please input semaphore ID (from 0 to 4): ");
+            printf("You chose Semaphore V command. Please input semaphore ID (from 0 to 4): ");
             
-            // // Get parameter and convert char to int
-            // char sid[3];
-            // fgets(sid, 3, stdin);
-            // int sid_num = atoi(sid);
+            // Get parameter and convert char to int
+            char sid[3];
+            fgets(sid, 3, stdin);
+            int sid_num = atoi(sid);
 
-            // // Call semaphoreP
-            // int result = semaphoreV(sid_num);
-            // if (result == 0) {
-            //     printf("Success \n");
-            // } else {
-            //     printf("Failure \n");
-            // }
+            // Call semaphoreV
+            int result = semaphoreV(sid_num);
+            if (result == 0) {
+                printf("Success \n");
+            } else {
+                printf("Failure \n");
+            }
         }
         if (command == 'I') {
 
