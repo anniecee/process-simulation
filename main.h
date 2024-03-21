@@ -10,6 +10,7 @@ typedef struct {
 } PCB;
 
 typedef struct {
+    int sid;         // Semaphore ID (from 0 to 4)
     int value;       // Value of semaphore
     List *proc_list; // List of processes waiting on the semaphore
 } semaphore;
@@ -22,10 +23,8 @@ List* send_queue;
 List* receive_queue;
 List* all_jobs;
 
-PCB init_process;
+// List of semaphore
+List* all_semaphores; 
 
-
-// typedef struct {
-//     int priority;       // Value of priority (0, 1, 2)
-//     List *queue_list; // Queue structure
-// } queue;
+// Init process
+PCB* init_process;

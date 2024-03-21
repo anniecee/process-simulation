@@ -3,10 +3,14 @@
 #include <stdint.h>
 #include "main.h"
 
+// Process information
 static int id = 0;
 static PCB* curr_running = NULL;
 
-// using for List_search function
+// Semaphore information
+static int total_sem = 0;
+
+// using for List_search function for Process ID
 bool searchPid(void* pItem, void* pComparisonArg) {
     // Return true if pid matches comparision arg
     if(((PCB*)pItem)->pid == *(int*)pComparisonArg){
@@ -17,14 +21,58 @@ bool searchPid(void* pItem, void* pComparisonArg) {
     }
 }
 
+// using for List_search function for Semaphore ID
+bool searchSid(void* sItem, void* pComparisonArg) {
+    // Return true if sid matches comparision arg
+    if(((semaphore*)sItem)->sid == *(int*)pComparisonArg){
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+// Function to run the next ready process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+PCB* getProcess() {
+    PCB* running_process = NULL;
+    if (List_count(high_priority) != 0) {
+        running_process = List_trim(high_priority);
+    }
+    else if (List_count(medium_priority) != 0) {
+        running_process = List_trim(medium_priority);
+    }
+    else if (List_count(low_priority) != 0) {
+        running_process = List_trim(low_priority);
+    }
+    else {
+        running_process = init_process;
+    }
+
+    strcpy(running_process->state, "running");
+    curr_running = running_process;
+
+    return curr_running;
+}
+
 void checkInit() {
     // Init process set to "running" if all priority queues are empty
     if (List_count(high_priority) == 0 && List_count(medium_priority) == 0 && List_count(low_priority) == 0) {
-        strcpy(init_process.state, "running");
+        strcpy(init_process->state, "running");
     }
     // Init process set to "ready" otherwise
     else {
-        strcpy(init_process.state, "ready");
+        strcpy(init_process->state, "ready");
+    }
+}
+
+// For testing purpose; might adjust into Totalinfo()
+void printList(List* list){
+    printf("Current running process is: %d - %d - %s\n", curr_running->pid, curr_running->priority, curr_running->state);
+    List_first(list);
+    while(List_curr(list) != NULL){
+        PCB* item = List_curr(list);
+        printf("%d - %d - %s\n", item->pid, item->priority, item->state);
+        List_next(list);
     }
 }
 
@@ -36,11 +84,14 @@ void startUp() {
     low_priority = List_create();
     send_queue = List_create();
     receive_queue = List_create();
-    all_pcb = List_create();
+    all_jobs = List_create();
+    all_semaphores = List_create();
 
     // Create init_process
-    strcpy(init_process.state, "running");
-    init_process.pid = id++;
+    init_process = (PCB*)malloc(sizeof(PCB));
+    strcpy(init_process->state, "running");
+    init_process->pid = id++; // pid of init process = 0
+    curr_running = init_process;
 }
 
 // function for create PCB (C command)
@@ -52,12 +103,11 @@ int createPCB(int priority){
     strcpy(new_process->state, "ready");
 
     // If it is the first process created, set current running process and init process to ready
-    if(id == 2 && curr_running == NULL){
-        strcpy(init_process.state, "ready");
+    if(id == 2){
+        strcpy(init_process->state, "ready");
         strcpy(new_process->state, "running");
         curr_running = new_process;
     }
-    // If not the first process, put into appropriate priority queue
     else {
         if(priority == 0){
             List_prepend(high_priority, new_process);
@@ -90,22 +140,104 @@ int fork() {
 }
 
 int kill(int pid) {
-    List_first(high_priority);
-    void* pcb_searched = List_search(high_priority, searchPid, &pid);
-    if (pcb_searched != NULL){
-        List_remove(high_priority);
+    if (List_count(all_jobs) == 0){
+        printf("Error, there is no process to kill");
+        return 0;
     }
+    else if (curr_running->pid == 0 && List_count(all_jobs) != 0){
+        printf("Error, cannot kill init process");
+        return 0;
+    }
+
+    List* queues = List_create();
+    List_prepend(queues, high_priority);
+    List_prepend(queues, medium_priority);
+    List_prepend(queues, low_priority);
+    List_prepend(queues, send_queue);
+    List_prepend(queues, receive_queue);
+
+    while(List_curr(queues) != NULL){
+        List* list = List_curr(queues);
+        List_first(list);
+        void* pcb_searched = List_search(list, searchPid, &pid);
+        if (pcb_searched != NULL){
+            List_remove(list);
+            // REMEMBER TO FREE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+        }
+        List_next(queues);
+    }
+
+    return 1;
 }
 
-// For testing purpose; might adjust into Totalinfo()
-void print(List* list){
-    List_first(list);
-    while(List_curr(list) != NULL){
-        PCB* item = List_curr(list);
-        printf("%d - %d - %s\n", item->pid, item->priority, item->state);
-        List_next(list);
-    }
+int newSemaphore(int sid, int value) {
+    // Check if semaphore ID is from 0 - 4
+    if (sid < 0 || sid > 4) { return 1; }
+    
+    // Check if 5 semaphores are already available
+    if (total_sem >= 5) { return 1; }
+
+    // Check if initial value is > 0
+    if (value < 0) { return 1; }
+
+    // Otherwise, create semaphore
+    semaphore* new_sem = (semaphore*)malloc(sizeof(semaphore));
+    if (new_sem == NULL) { return 1; }
+
+    new_sem->sid = sid;
+    new_sem->value = value;
+    new_sem->proc_list = List_create();
+
+    // Add semaphore to list & increment total_sem
+    List_prepend(all_semaphores, new_sem);
+    total_sem++;
+
+    return 0;
 }
+
+int semaphoreP(int sid) {
+    // Search for targeted semaphore
+    semaphore* searched_semaphore = List_search(all_semaphores, searchSid, &sid);
+
+    // Decrement value of semaphore
+    searched_semaphore->value--;
+
+    // Add process to proc_list and block process if value < 0
+    if (searched_semaphore->value < 0) {
+        if (curr_running != NULL || curr_running->pid != 0) {
+            // Add process to proc_list
+            List_prepend(searched_semaphore->proc_list, curr_running);
+
+            // Block running process
+            strcpy(curr_running->state, "block");
+
+            // Replace running process with a new proccess
+            PCB* running_process = getProcess();
+            
+            // fail if running process is init
+            if (running_process->pid == 0) { return 1; }
+        }
+        // fail if no process is running or running process is init
+        else { 
+            return 1; 
+        }
+    }
+
+    return 0;
+}
+
+// int semaphoreV(int sid) {
+//     // Search for targeted semaphore
+//     void* searched_semaphore = List_search(all_semaphores, searchSid, &sid);
+
+//     // Increment value of semaphore
+//     searched_semaphore->value++;
+
+//     // Get a process from proc_list and wake it up
+//     if (searched_semaphore->value <= 0) {
+
+//     }
+// }
 
 int main() {
 
@@ -134,46 +266,119 @@ int main() {
             createPCB(priority_num);
             
         }
-        else if(command == 'F'){
+        if(command == 'F'){
             fork();
         }
-        else if(command == 'K'){
+        if(command == 'K'){
             kill(3);
         }
-        else if(command = 'O'){
-            print(high_priority);
+        if(command == 'O'){
+            printList(high_priority);
         }
-        else if (command == 'E') {
+        if(command == 'A'){
+            List* queues = List_create();
+            List_prepend(queues, high_priority);
+            List_prepend(queues, medium_priority);
+            List_prepend(queues, low_priority);
+            List_prepend(queues, send_queue);
+            List_prepend(queues, receive_queue);
+            while(List_curr(queues) != NULL){
+                List* list = List_curr(queues);
+                printList(list);
+                List_next(queues);
+            }
+        }
+        if (command == 'E') {
+            if (curr_running->pid == 0 && List_count(all_jobs) == 0){
+                // terminate the program
+                printf("Program terminated!");
+                break;
+            }
+            
+            if (curr_running->pid != 0 && List_count(all_jobs) == 0){
+                strcpy(init_process->state, "running");
+                curr_running = init_process;
+            }
 
+            if (curr_running->pid != 0){
+                // free current process
+                // current running = getProcess()
+            }
         }
-        else if (command == 'Q') {
+        if (command == 'Q') {
             
         }
-        else if (command = 'S') {
+        if (command == 'S') {
 
         }
-        else if (command == 'R') {
+        if (command == 'R') {
 
         }
-        else if (command == 'Y') {
+        if (command == 'Y') {
 
         }
-        else if (command == 'N') {
+        if (command == 'N') {
+            printf("You chose New Semaphore command. Please input semaphore ID (from 0 to 4): ");
+            
+            // Get parameter and convert char to int
+            char sid[3];
+            fgets(sid, 3, stdin);
+            int sid_num = atoi(sid);
+
+            printf("Please input initial value for semaphore: ");
+            
+            // Get parameter and convert char to int
+            char val[3];
+            fgets(val, 3, stdin);
+            int val_num = atoi(val);
+
+            // Create new semaphore
+            int result = newSemaphore(sid_num, val_num);
+            if (result == 0) {
+                printf("Success \n");
+            } else {
+                printf("Failure \n");
+            }
+        }
+        if (command == 'P') {
+            printf("You chose Semaphore P command. Please input semaphore ID (from 0 to 4): ");
+            
+            // Get parameter and convert char to int
+            char sid[3];
+            fgets(sid, 3, stdin);
+            int sid_num = atoi(sid);
+
+            // Call semaphoreP
+            int result = semaphoreP(sid_num);
+            if (result == 0) {
+                printf("Success \n");
+            } else {
+                printf("Failure \n");
+            }
+        }
+        if (command == 'V') {
+            // printf("You chose Semaphore V command. Please input semaphore ID (from 0 to 4): ");
+            
+            // // Get parameter and convert char to int
+            // char sid[3];
+            // fgets(sid, 3, stdin);
+            // int sid_num = atoi(sid);
+
+            // // Call semaphoreP
+            // int result = semaphoreV(sid_num);
+            // if (result == 0) {
+            //     printf("Success \n");
+            // } else {
+            //     printf("Failure \n");
+            // }
+        }
+        if (command == 'I') {
 
         }
-        else if (command == 'P') {
+        if (command == 'T') {
 
         }
-        else if (command == 'V') {
-
-        }
-        else if (command == 'I') {
-
-        }
-        else if (command == 'T') {
-
-        }
-        else if (command == '!') {
+        if (command == '!') {
 
         }
     }
