@@ -32,6 +32,25 @@ bool searchSid(void* sItem, void* pComparisonArg) {
     }
 }
 
+void procFree(void* item){
+    if (item != NULL){
+        // free(((PCB*)item)->proc_message);
+        free(item);
+    }
+}
+
+void terminateProgram(){
+    // Free queue lists
+    List_free(high_priority, procFree);
+    List_free(medium_priority, procFree);
+    List_free(low_priority, procFree);
+    List_free(send_queue, procFree);
+    List_free(receive_queue, procFree);
+    List_free(all_jobs, procFree);
+    // Free semaphore list
+
+}
+
 // Function to run the next ready process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 PCB* getProcess() {
     PCB* running_process = NULL;
@@ -46,6 +65,13 @@ PCB* getProcess() {
     }
     else {
         running_process = init_process;
+    }
+
+    // Remove the running process from list of all ready jobs
+    List_first(all_jobs);
+    if (running_process->pid != 0){
+        List_search(all_jobs, searchSid, &(running_process->pid));
+        List_remove(all_jobs);
     }
 
     strcpy(running_process->state, "running");
@@ -76,6 +102,22 @@ void printList(List* list){
     }
 }
 
+void toReadyQueue(PCB* process){
+    int priority = process->priority;
+    if(priority == 0){
+            List_prepend(high_priority, process);
+        }
+        else if(priority == 1){
+            List_prepend(medium_priority, process);
+        }
+        else {
+            List_prepend(low_priority, process);
+        }
+
+    // Put into list of all jobs
+    List_prepend(all_jobs, process);
+}
+
 // Startup
 void startUp() {
     // Create 5 queues 
@@ -103,24 +145,15 @@ int createPCB(int priority){
     strcpy(new_process->state, "ready");
 
     // If it is the first process created, set current running process and init process to ready
-    if(id == 2){
+    if(curr_running->pid == 0){
         strcpy(init_process->state, "ready");
         strcpy(new_process->state, "running");
         curr_running = new_process;
     }
     else {
-        if(priority == 0){
-            List_prepend(high_priority, new_process);
-        }
-        else if(priority == 1){
-            List_prepend(medium_priority, new_process);
-        }
-        else {
-            List_prepend(low_priority, new_process);
-        }
+        toReadyQueue(new_process);
     }
-    // Put into list of all jobs
-    List_prepend(all_jobs, new_process);
+
 }
 
 // fork (F command)
@@ -140,28 +173,38 @@ int fork() {
 }
 
 int kill(int pid) {
-    if (List_count(all_jobs) == 0){
-        printf("Error, there is no process to kill");
+    List_first(all_jobs);
+    void* pcb_searched = List_search(all_jobs, searchPid, &pid);
+    if (curr_running->pid == 0 && List_count(all_jobs) == 0){
+        printf("Error, cannot kill init process!\n");
         return 0;
     }
-    else if (curr_running->pid == 0 && List_count(all_jobs) != 0){
-        printf("Error, cannot kill init process");
+    else if (pcb_searched == NULL){
+        printf("Error, there is no process of given id to kill!\n");
         return 0;
     }
 
+    // What if the current running is the one need to be killed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
     List* queues = List_create();
     List_prepend(queues, high_priority);
     List_prepend(queues, medium_priority);
     List_prepend(queues, low_priority);
     List_prepend(queues, send_queue);
     List_prepend(queues, receive_queue);
+    // Check semaphores lists to kill
 
     while(List_curr(queues) != NULL){
         List* list = List_curr(queues);
         List_first(list);
-        void* pcb_searched = List_search(list, searchPid, &pid);
+        pcb_searched = List_search(list, searchPid, &pid);
         if (pcb_searched != NULL){
+            // Remove in the waiting and ready lists
             List_remove(list);
+            // Remove in all jobs lists
+            List_first(all_jobs);
+            List_search(all_jobs, searchPid, &pid);
+            List_remove(all_jobs);
             // REMEMBER TO FREE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
         }
         List_next(queues);
@@ -199,6 +242,10 @@ int semaphoreP(int sid) {
     // Search for targeted semaphore
     semaphore* searched_semaphore = List_search(all_semaphores, searchSid, &sid);
 
+    // Remember to check if searched_semaphore is not found or not exist!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+
+
+
     // Decrement value of semaphore
     searched_semaphore->value--;
 
@@ -234,7 +281,7 @@ int semaphoreP(int sid) {
 //     searched_semaphore->value++;
 
 //     // Get a process from proc_list and wake it up
-//     if (searched_semaphore->value <= 0) {
+//     commandif (searched_semaphore->value <= 0) {
 
 //     }
 // }
@@ -247,6 +294,9 @@ int main() {
     // Print direction to screen:
     printf("Process Scheduling Simulation\n");
     printf("Please input your command and then enter. Input '!' to end program.\n");
+
+
+
 
     while(1){
         // Check init process
@@ -270,12 +320,23 @@ int main() {
             fork();
         }
         if(command == 'K'){
-            kill(3);
-        }
-        if(command == 'O'){
-            printList(high_priority);
+            printf("You chose Kill command, please input process ID you want to kill: ");
+            
+            // Get parameter and convert char to int
+            char pid[3];
+            fgets(pid, 3, stdin);
+            
+            if(kill(atoi(pid))){
+                printf("Kill successful!\n");
+            }
+            else{
+                printf("Kill failed!\n");
+            }
         }
         if(command == 'A'){
+            printList(all_jobs);
+        }
+        if(command == 'L'){
             List* queues = List_create();
             List_prepend(queues, high_priority);
             List_prepend(queues, medium_priority);
@@ -290,23 +351,37 @@ int main() {
         }
         if (command == 'E') {
             if (curr_running->pid == 0 && List_count(all_jobs) == 0){
-                // terminate the program
-                printf("Program terminated!");
+                // Terminate the program
+                terminateProgram();
+                // Free
+                printf("Program terminated!\n");
                 break;
             }
-            
+            // current runnning is not init and there is no jobs left
             if (curr_running->pid != 0 && List_count(all_jobs) == 0){
                 strcpy(init_process->state, "running");
+                free(curr_running);
                 curr_running = init_process;
             }
-
-            if (curr_running->pid != 0){
+            else if (curr_running->pid != 0){
                 // free current process
-                // current running = getProcess()
+                free(curr_running);
+                curr_running = getProcess();
             }
+            printf("Exit successful\n");
         }
         if (command == 'Q') {
-            
+            printf("You called Quantum!\n");
+            if (curr_running->pid != 0){
+                // Update new priority if priority is not low
+                if (curr_running->priority != 2){
+                    curr_running->priority += 1;
+                }
+                strcpy(curr_running->state, "ready");
+                toReadyQueue(curr_running);
+                getProcess();
+            }
+            printf("Quantum successful\n");
         }
         if (command == 'S') {
 
