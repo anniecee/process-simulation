@@ -148,7 +148,12 @@ void startUp() {
 
 // Function for create PCB (C command)
 int createPCB(int priority){
+    // Check if process priority is from 0 - 2
+    if (priority < 0 || priority > 2) { return FAIL; }
+
+    // Create new process
     PCB* new_process = (PCB*)malloc(sizeof(PCB));
+    if (new_process == NULL ) { return FAIL; }
 
     new_process->pid = id++;
     new_process->priority = priority;
@@ -165,16 +170,17 @@ int createPCB(int priority){
         toReadyQueue(new_process);
     }
 
+    return new_process->pid;
 }
 
 // fork (F command)
 int fork() {
     // If no process is running or the current process is init process, fork fails
     if(curr_running == NULL){
-        return 0;
+        return FAIL;
     }
     else if(curr_running->pid == 0){
-        return 0;
+        return FAIL;
     }
 
     // Otherwise, create new process and return pid
@@ -191,11 +197,11 @@ int kill(int pid) {
     // If running process is init OR process can't be found, cannot kill
     if (curr_running->pid == 0 && List_count(all_jobs) == 0){
         printf("Error, cannot kill init process!\n");
-        return 0;
+        return FAIL;
     }
     else if (pcb_searched == NULL){
         printf("Error, there is no process of given id to kill!\n");
-        return 0;
+        return FAIL;
     }
 
     // TO-DO: What if the current running is the one need to be killed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -226,7 +232,7 @@ int kill(int pid) {
         List_next(all_queues);
     }
 
-    return 1;
+    return SUCCESS;
 }
 
 int newSemaphore(int sid, int value) {
@@ -266,10 +272,6 @@ int semaphoreP(int sid) {
     List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
     if (searched_sem == NULL) { return FAIL; }
-
-    // Remember to check if searched_semaphore is not found or not exist!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-
-
 
     // Decrement value of semaphore
     searched_sem->value--;
@@ -359,31 +361,46 @@ int main() {
         while(getchar() != '\n'); // Clear input buffer
 
         if(command == 'C'){
-            printf("You chose Create command, please input priority (0 - High, 1 - Medium, 2 - Low): ");
+            printf("You chose Create command. Please input priority (0 - High, 1 - Medium, 2 - Low): ");
             
             // Get parameter and convert char to int
             char priority[3];
             fgets(priority, 3, stdin);
             int priority_num = atoi(priority);
 
-            createPCB(priority_num);
+            // Create new process
+            int result = createPCB(priority_num);;
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("New process with ID: %d created! \n", result);
+                printf("Success \n");
+            }
             
         }
         if(command == 'F'){
-            fork();
+            printf("You chose Fork command.\n");
+            int result = fork();
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("Forked a new process with ID: %d.\n", result);
+                printf("Success\n");
+            }
         }
         if(command == 'K'){
-            printf("You chose Kill command, please input process ID you want to kill: ");
+            printf("You chose Kill command. Please input process ID you want to kill: ");
             
             // Get parameter and convert char to int
             char pid[3];
             fgets(pid, 3, stdin);
-            
-            if(kill(atoi(pid))){
-                printf("Kill successful!\n");
-            }
-            else{
-                printf("Kill failed!\n");
+
+            int result = kill(atoi(pid));
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("Killed process %s", pid);
+                printf("Success\n");
             }
         }
         if(command == 'A'){
@@ -509,7 +526,7 @@ int main() {
             if (result == SUCCESS) {
                 printf("Success \n");
             } else {
-                printf("Failure \n");
+                printf("Fail \n");
             }
         }
         if (command == 'P') {
@@ -525,7 +542,7 @@ int main() {
             if (result == SUCCESS) {
                 printf("Success \n");
             } else {
-                printf("Failure \n");
+                printf("Fail \n");
             }
         }
         if (command == 'V') {
@@ -541,7 +558,7 @@ int main() {
             if (result == SUCCESS) {
                 printf("Success \n");
             } else {
-                printf("Failure \n");
+                printf("Fail \n");
             }
         }
         if (command == 'I') {
