@@ -380,6 +380,76 @@ int procInfo(int pid) {
     return SUCCESS;
 }
 
+void totalInfo(){
+    printf("\n## High priority queue:##\n");
+    List_last(high_priority);
+    while(List_curr(high_priority) != NULL){
+        PCB* item = List_curr(high_priority);
+        printf("Process ID: %d\n", item->pid);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(high_priority);
+    }
+    if (List_count(high_priority) == 0) {
+        printf("No process in this queue.\n");
+    }
+
+    printf("\n## Medium priority queue ##\n");
+    List_last(medium_priority);
+    while(List_curr(medium_priority) != NULL){
+        PCB* item = List_curr(medium_priority);
+        printf("Process ID: %d\n", item->pid);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(medium_priority);
+    }
+    if (List_count(medium_priority) == 0) {
+        printf("No process in this queue.\n");
+    }
+
+    printf("\n## Low priority queue ##\n");
+    List_last(low_priority);
+    while(List_curr(low_priority) != NULL){
+        PCB* item = List_curr(low_priority);
+        printf("Process ID: %d\n", item->pid);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(low_priority);
+    }
+    if (List_count(low_priority) == 0) {
+        printf("No process in this queue.\n");
+    }
+
+    printf("\n## Queue of processes waiting on a send operation ##\n");
+    List_last(send_queue);
+    while(List_curr(send_queue) != NULL){
+        PCB* item = List_curr(send_queue);
+        printf("Process ID: %d\n", item->pid);
+        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(send_queue);
+    }
+    if (List_count(send_queue) == 0) {
+        printf("No process in this queue.\n");
+    }
+
+    printf("\n## Queue of processes waiting on a receive operation ##\n");
+    List_last(receive_queue);
+    while(List_curr(receive_queue) != NULL){
+        PCB* item = List_curr(receive_queue);
+        printf("Process ID: %d\n", item->pid);
+        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(receive_queue);
+    }
+    if (List_count(receive_queue) == 0) {
+        printf("No process in this queue.\n");
+    }
+}
+
+
 int main() {
 
     // startUp() called
@@ -396,7 +466,7 @@ int main() {
         char command = getchar();
         while(getchar() != '\n'); // Clear input buffer
 
-        if(command == 'C'){
+        if(command == 'C' || command == 'c'){
             printf("You chose Create command. Please input priority (0 - High, 1 - Medium, 2 - Low): ");
             
             // Get parameter and convert char to int
@@ -414,7 +484,7 @@ int main() {
             }
             
         }
-        if(command == 'F'){
+        if(command == 'F' || command == 'f'){
             printf("You chose Fork command.\n");
             int result = fork();
             if (result == FAIL) {
@@ -424,7 +494,7 @@ int main() {
                 printf("Success\n");
             }
         }
-        if(command == 'K'){
+        if(command == 'K' || command == 'k'){
             printf("You chose Kill command. Please input process ID you want to kill: ");
             
             // Get parameter and convert char to int
@@ -439,10 +509,10 @@ int main() {
                 printf("Success\n");
             }
         }
-        if(command == 'A'){
+        if(command == 'A' || command == 'a'){
             printList(all_jobs);
         }
-        if(command == 'L'){
+        if(command == 'L' || command == 'l'){
             List* queues = List_create();
             List_prepend(queues, high_priority);
             List_prepend(queues, medium_priority);
@@ -455,7 +525,7 @@ int main() {
                 List_next(queues);
             }
         }
-        if (command == 'E') {
+        if (command == 'E' || command == 'e') {
             if (curr_running->pid == 0 && List_count(all_jobs) == 0){
                 // Terminate the program
                 terminateProgram();
@@ -476,7 +546,7 @@ int main() {
             }
             printf("Exit successful\n");
         }
-        if (command == 'Q') {
+        if (command == 'Q' || command == 'q') {
             printf("You called Quantum!\n");
             if (curr_running->pid != 0){
                 // Update new priority if priority is not low
@@ -489,7 +559,7 @@ int main() {
             }
             printf("Quantum successful\n");
         }
-        if (command == 'S') {
+        if (command == 'S' || command == 's') {
             printf("You chose Send command, please input process ID and message with a space in between ('id' 'message'): ");
             // Get receive id with message and separate those two
             char input_message[1000];
@@ -521,7 +591,7 @@ int main() {
 
 
         }
-        if (command == 'R') {
+        if (command == 'R' || command == 'r') {
             printf("You chose Receive command!");
 
             // Search for the send process
@@ -539,10 +609,10 @@ int main() {
             }
             
         }
-        if (command == 'Y') {
+        if (command == 'Y' || command == 'y') {
 
         }
-        if (command == 'N') {
+        if (command == 'N' || command == 'n') {
             printf("You chose New Semaphore command. Please input semaphore ID (from 0 to 4): ");
             
             // Get parameter and convert char to int
@@ -565,7 +635,7 @@ int main() {
                 printf("Fail \n");
             }
         }
-        if (command == 'P') {
+        if (command == 'P' || command == 'p') {
             printf("You chose Semaphore P command. Please input semaphore ID (from 0 to 4): ");
             
             // Get parameter and convert char to int
@@ -581,7 +651,7 @@ int main() {
                 printf("Fail \n");
             }
         }
-        if (command == 'V') {
+        if (command == 'V' || command == 'v') {
             printf("You chose Semaphore V command. Please input semaphore ID (from 0 to 4): ");
             
             // Get parameter and convert char to int
@@ -597,7 +667,7 @@ int main() {
                 printf("Fail \n");
             }
         }
-        if (command == 'I') {
+        if (command == 'I' || command == 'i') {
             printf("You chose Process Information command. Please input process ID: ");
             
             // Get parameter and convert char to int
@@ -613,8 +683,8 @@ int main() {
                 printf("Success \n");
             }
         }
-        if (command == 'T') {
-
+        if (command == 'T' || command == 't') {
+            totalInfo();
         }
         if (command == '!') {
 
