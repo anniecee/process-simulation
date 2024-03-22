@@ -115,17 +115,6 @@ void checkInit() {
     }
 }
 
-// For testing purpose; might adjust into Totalinfo()
-void printList(List* list){
-    printf("Current running process is: %d - %d - %s\n", curr_running->pid, curr_running->priority, curr_running->state);
-    List_first(list);
-    while(List_curr(list) != NULL){
-        PCB* item = List_curr(list);
-        printf("%d - %d - %s\n", item->pid, item->priority, item->state);
-        List_next(list);
-    }
-}
-
 // Bring process back to ready queue
 void toReadyQueue(PCB* process){
 
@@ -168,7 +157,12 @@ void startUp() {
 
 // Function for create PCB (C command)
 int createPCB(int priority){
+    // Check if process priority is from 0 - 2
+    if (priority < 0 || priority > 2) { return FAIL; }
+
+    // Create new process
     PCB* new_process = (PCB*)malloc(sizeof(PCB));
+    if (new_process == NULL ) { return FAIL; }
 
     new_process->pid = id++;
     new_process->priority = priority;
@@ -185,16 +179,17 @@ int createPCB(int priority){
         toReadyQueue(new_process);
     }
 
+    return new_process->pid;
 }
 
 // fork (F command)
 int fork() {
     // If no process is running or the current process is init process, fork fails
     if(curr_running == NULL){
-        return 0;
+        return FAIL;
     }
     else if(curr_running->pid == 0){
-        return 0;
+        return FAIL;
     }
 
     // Otherwise, create new process and return pid
@@ -211,11 +206,11 @@ int kill(int pid) {
     // If running process is init OR process can't be found, cannot kill
     if (curr_running->pid == 0 && List_count(all_jobs) == 0){
         printf("Error, cannot kill init process!\n");
-        return 0;
+        return FAIL;
     }
     else if (pcb_searched == NULL){
         printf("Error, there is no process of given id to kill!\n");
-        return 0;
+        return FAIL;
     }
 
     // TO-DO: What if the current running is the one need to be killed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -246,7 +241,7 @@ int kill(int pid) {
         List_next(all_queues);
     }
 
-    return 1;
+    return SUCCESS;
 }
 
 void quantum() {
@@ -332,18 +327,24 @@ void receive(){
 
 int newSemaphore(int sid, int value) {
     // Check if semaphore ID is from 0 - 4
-    if (sid < 0 || sid > 4) { return FAIL; }
-    
-    // Check if 5 semaphores are already available
-    if (total_sem >= 5) { return FAIL; }
+    if (sid < 0 || sid > 4) { 
+        printf("Semaphore ID is out of range. It should be from 0 - 4.\n");
+        return FAIL; 
+    }
 
     // Check if the semaphore has already been created
     List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem != NULL) { return FAIL; }
+    if (searched_sem != NULL) { 
+        printf("Semaphore with ID %d was already created.\n", sid);
+        return FAIL; 
+    }
 
     // Check if initial value is < 0
-    if (value < 0) { return FAIL; }
+    if (value < 0) { 
+        printf("Initial value should be >= 0.\n");
+        return FAIL; 
+    }
 
     // Otherwise, create semaphore
     semaphore* new_sem = (semaphore*)malloc(sizeof(semaphore));
@@ -366,11 +367,10 @@ int semaphoreP(int sid) {
     // Search for targeted semaphore
     List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem == NULL) { return FAIL; }
-
-    // Remember to check if searched_semaphore is not found or not exist!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-
-
+    if (searched_sem == NULL) { 
+        printf("Error. Input semaphore ID is not available.\n");
+        return FAIL; 
+    }
 
     // Decrement value of semaphore
     searched_sem->value--;
@@ -386,11 +386,14 @@ int semaphoreP(int sid) {
             // Block running process
             strcpy(curr_running->state, "blocked");
 
-            // Replace running process with a new proccess
-            PCB* running_process = getProcess();
-            
             // fail if running process is init
-            if (running_process->pid == 0) { return FAIL; }
+            if (curr_running->pid == 0) { 
+                printf("Error. Can't block init process.\n");
+                return FAIL; 
+            }
+
+            // Replace running process with a new proccess
+            getProcess();
 
             printf("Blocked process with ID: %d.\n", temp_process->pid);
         }
@@ -409,7 +412,10 @@ int semaphoreV(int sid) {
     // Search for targeted semaphore
     List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem == NULL) { return FAIL; }
+    if (searched_sem == NULL) { 
+        printf("Error. Input semaphore ID is not available.\n");
+        return FAIL; 
+    }
 
     // Increment value of semaphore
     searched_sem->value++;
@@ -417,9 +423,6 @@ int semaphoreV(int sid) {
 
     // Get a process from proc_list and wake it up
     if (searched_sem->value <= 0) {
-        // Fail if proc_list is empty
-        if (List_count(searched_sem->proc_list) == 0) { return FAIL; }
-
         // Remove a process from proc_list & set it to ready
         PCB* waken_proc = List_trim(searched_sem->proc_list);
         strcpy(waken_proc->state, "ready");
@@ -443,6 +446,71 @@ int semaphoreV(int sid) {
     return SUCCESS;
 }
 
+int procInfo(int pid) {
+    // Search for process
+    List_first(all_jobs);
+    PCB* pcb_searched = List_search(all_jobs, searchPid, &pid);
+
+    if (pcb_searched == NULL && curr_running->pid != pid) { 
+        printf("Error. Input process ID is not available.\n");
+        return FAIL; 
+    }
+    // Set pcb_searched to currently running process if the requested pid is running process
+    if (pcb_searched == NULL && curr_running->pid == pid) {
+        pcb_searched = curr_running;
+    }
+
+    // Dump information
+    printf("Process Information:\n");
+    printf("Process ID: %d\n", pcb_searched->pid);
+    printf("Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", pcb_searched->priority);
+    printf("State: %s\n", pcb_searched->state);
+    printf("Message: %s\n", pcb_searched->proc_message);
+
+    return SUCCESS;
+}
+
+void printList(List* list) {
+    List_last(list);
+    while(List_curr(list) != NULL){
+        PCB* item = List_curr(list);
+        printf("Process ID: %d\n", item->pid);
+        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(list);
+    }
+    if (List_count(list) == 0) {
+        printf("No process in this queue.\n");
+    }
+}
+
+void totalInfo(){
+    printf("\n## High priority queue:##\n");
+    printList(high_priority);
+
+    printf("\n## Medium priority queue ##\n");
+    printList(medium_priority);
+
+    printf("\n## Low priority queue ##\n");
+    printList(low_priority);
+
+    printf("\n## Queue of processes waiting on a send operation ##\n");
+    printList(send_queue);
+
+    printf("\n## Queue of processes waiting on a receive operation ##\n");
+    printList(receive_queue);
+
+    List_last(all_semaphores);
+    while(List_curr(all_semaphores) != NULL){
+        semaphore* item = List_curr(all_semaphores);
+        printf("\n## Block list of semaphore ID %d ##\n", item->sid);
+        printList(item->proc_list);
+        List_prev(all_semaphores);
+    }
+}
+
+
 int main() {
 
     // startUp() called
@@ -459,38 +527,50 @@ int main() {
         char command = getchar();
         while(getchar() != '\n'); // Clear input buffer
 
-        if(command == 'C'){
-            printf("You chose Create command, please input priority (0 - High, 1 - Medium, 2 - Low): ");
+        if(command == 'C' || command == 'c'){
+            printf("You chose Create command. Please input priority (0 - High, 1 - Medium, 2 - Low): ");
             
             // Get parameter and convert char to int
             char priority[3];
             fgets(priority, 3, stdin);
             int priority_num = atoi(priority);
 
-            createPCB(priority_num);
+            // Create new process
+            int result = createPCB(priority_num);;
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("New process with ID: %d created! \n", result);
+                printf("Success \n");
+            }
             
         }
-        if(command == 'F'){
-            fork();
+        if(command == 'F' || command == 'f'){
+            printf("You chose Fork command.\n");
+            int result = fork();
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("Forked a new process with ID: %d.\n", result);
+                printf("Success\n");
+            }
         }
-        if(command == 'K'){
-            printf("You chose Kill command, please input process ID you want to kill: ");
+        if(command == 'K' || command == 'k'){
+            printf("You chose Kill command. Please input process ID you want to kill: ");
             
             // Get parameter and convert char to int
             char pid[3];
             fgets(pid, 3, stdin);
-            
-            if(kill(atoi(pid))){
-                printf("Kill successful!\n");
-            }
-            else{
-                printf("Kill failed!\n");
+
+            int result = kill(atoi(pid));
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("Killed process %s", pid);
+                printf("Success\n");
             }
         }
-        if(command == 'A'){
-            printList(all_jobs);
-        }
-        if(command == 'L'){
+        if(command == 'L' || command == 'l'){
             List* queues = List_create();
             List_prepend(queues, high_priority);
             List_prepend(queues, medium_priority);
@@ -503,7 +583,7 @@ int main() {
                 List_next(queues);
             }
         }
-        if (command == 'E') {
+        if (command == 'E' || command == 'e') {
             if (curr_running->pid == 0 && List_count(all_jobs) == 0){
                 // Terminate the program
                 terminateProgram();
@@ -524,14 +604,14 @@ int main() {
             }
             printf("Exit successful\n");
         }
-        if (command == 'Q') {
+        if (command == 'Q' || command == 'q') {
             printf("You called Quantum!\n");
             
             quantum();
 
             printf("Quantum successful\n");
         }
-        if (command == 'S') {
+        if (command == 'S' || command == 's') {
             printf("You chose Send command, please input process ID and message with a space in between ('id' 'message'): ");
             // Get receive id with message and separate those two
             char input_message[1000];
@@ -548,17 +628,19 @@ int main() {
             }
 
         }
-        if (command == 'R') {
+      
+        if (command == 'R' || command == 'r') {
             printf("You chose Receive command!\n");
 
             receive();
             printf("Receive successfull!\n");
-        }
-        if (command == 'Y') {
             
+        }
+      
+        if (command == 'Y' || command == 'y') {
 
         }
-        if (command == 'N') {
+        if (command == 'N' || command == 'n') {
             printf("You chose New Semaphore command. Please input semaphore ID (from 0 to 4): ");
             
             // Get parameter and convert char to int
@@ -578,10 +660,10 @@ int main() {
             if (result == SUCCESS) {
                 printf("Success \n");
             } else {
-                printf("Failure \n");
+                printf("Fail \n");
             }
         }
-        if (command == 'P') {
+        if (command == 'P' || command == 'p') {
             printf("You chose Semaphore P command. Please input semaphore ID (from 0 to 4): ");
             
             // Get parameter and convert char to int
@@ -594,10 +676,10 @@ int main() {
             if (result == SUCCESS) {
                 printf("Success \n");
             } else {
-                printf("Failure \n");
+                printf("Fail \n");
             }
         }
-        if (command == 'V') {
+        if (command == 'V' || command == 'v') {
             printf("You chose Semaphore V command. Please input semaphore ID (from 0 to 4): ");
             
             // Get parameter and convert char to int
@@ -610,14 +692,27 @@ int main() {
             if (result == SUCCESS) {
                 printf("Success \n");
             } else {
-                printf("Failure \n");
+                printf("Fail \n");
             }
         }
-        if (command == 'I') {
+        if (command == 'I' || command == 'i') {
+            printf("You chose Process Information command. Please input process ID: ");
+            
+            // Get parameter and convert char to int
+            char pid[3];
+            fgets(pid, 3, stdin);
+            int pid_num = atoi(pid);
 
+            // Call procInfo()
+            int result = procInfo(pid_num);
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("Success \n");
+            }
         }
-        if (command == 'T') {
-
+        if (command == 'T' || command == 't') {
+            totalInfo();
         }
         if (command == '!') {
 
