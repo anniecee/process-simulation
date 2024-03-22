@@ -217,17 +217,17 @@ int kill(int pid) {
 
 int newSemaphore(int sid, int value) {
     // Check if semaphore ID is from 0 - 4
-    if (sid < 0 || sid > 4) { return 1; }
+    if (sid < 0 || sid > 4) { return FAIL; }
     
     // Check if 5 semaphores are already available
-    if (total_sem >= 5) { return 1; }
+    if (total_sem >= 5) { return FAIL; }
 
     // Check if initial value is < 0
-    if (value < 0) { return 1; }
+    if (value < 0) { return FAIL; }
 
     // Otherwise, create semaphore
     semaphore* new_sem = (semaphore*)malloc(sizeof(semaphore));
-    if (new_sem == NULL) { return 1; }
+    if (new_sem == NULL) { return FAIL; }
 
     new_sem->sid = sid;
     new_sem->value = value;
@@ -239,13 +239,13 @@ int newSemaphore(int sid, int value) {
     List_prepend(all_semaphores, new_sem);
     total_sem++;
 
-    return 0;
+    return SUCCESS;
 }
 
 int semaphoreP(int sid) {
     // Search for targeted semaphore
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem == NULL) { return 1; }
+    if (searched_sem == NULL) { return FAIL; }
 
     // Remember to check if searched_semaphore is not found or not exist!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
@@ -269,25 +269,25 @@ int semaphoreP(int sid) {
             PCB* running_process = getProcess();
             
             // fail if running process is init
-            if (running_process->pid == 0) { return 1; }
+            if (running_process->pid == 0) { return FAIL; }
 
             printf("Blocked process with ID: %d.\n", temp_process->pid);
         }
         // fail if no process is running or running process is init
         else { 
-            return 1; 
+            return FAIL; 
         }
     } else {
         printf("No process was blocked.\n");
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 int semaphoreV(int sid) {
     // Search for targeted semaphore
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem == NULL) { return 1; }
+    if (searched_sem == NULL) { return FAIL; }
 
     // Increment value of semaphore
     searched_sem->value++;
@@ -296,7 +296,7 @@ int semaphoreV(int sid) {
     // Get a process from proc_list and wake it up
     if (searched_sem->value <= 0) {
         // Fail if proc_list is empty
-        if (List_count(searched_sem->proc_list) == 0) { return 1; }
+        if (List_count(searched_sem->proc_list) == 0) { return FAIL; }
 
         // Remove a process from proc_list & set it to ready
         PCB* waken_proc = List_trim(searched_sem->proc_list);
@@ -318,7 +318,7 @@ int semaphoreV(int sid) {
         printf("No process was waken up.\n");
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 int main() {
@@ -488,7 +488,7 @@ int main() {
 
             // Create new semaphore
             int result = newSemaphore(sid_num, val_num);
-            if (result == 0) {
+            if (result == SUCCESS) {
                 printf("Success \n");
             } else {
                 printf("Failure \n");
@@ -504,7 +504,7 @@ int main() {
 
             // Call semaphoreP
             int result = semaphoreP(sid_num);
-            if (result == 0) {
+            if (result == SUCCESS) {
                 printf("Success \n");
             } else {
                 printf("Failure \n");
@@ -520,7 +520,7 @@ int main() {
 
             // Call semaphoreV
             int result = semaphoreV(sid_num);
-            if (result == 0) {
+            if (result == SUCCESS) {
                 printf("Success \n");
             } else {
                 printf("Failure \n");
