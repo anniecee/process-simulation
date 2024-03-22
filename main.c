@@ -97,17 +97,6 @@ void checkInit() {
     }
 }
 
-// For testing purpose; might adjust into Totalinfo()
-void printList(List* list){
-    printf("Current running process is: %d - %d - %s\n", curr_running->pid, curr_running->priority, curr_running->state);
-    List_first(list);
-    while(List_curr(list) != NULL){
-        PCB* item = List_curr(list);
-        printf("%d - %d - %s\n", item->pid, item->priority, item->state);
-        List_next(list);
-    }
-}
-
 // Bring process back to ready queue
 void toReadyQueue(PCB* process){
     int priority = process->priority;
@@ -380,72 +369,43 @@ int procInfo(int pid) {
     return SUCCESS;
 }
 
+void printList(List* list) {
+    List_last(list);
+    while(List_curr(list) != NULL){
+        PCB* item = List_curr(list);
+        printf("Process ID: %d\n", item->pid);
+        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(list);
+    }
+    if (List_count(list) == 0) {
+        printf("No process in this queue.\n");
+    }
+}
+
 void totalInfo(){
     printf("\n## High priority queue:##\n");
-    List_last(high_priority);
-    while(List_curr(high_priority) != NULL){
-        PCB* item = List_curr(high_priority);
-        printf("Process ID: %d\n", item->pid);
-        printf("    State: %s\n", item->state);
-        printf("    Message: %s\n", item->proc_message);
-        List_prev(high_priority);
-    }
-    if (List_count(high_priority) == 0) {
-        printf("No process in this queue.\n");
-    }
+    printList(high_priority);
 
     printf("\n## Medium priority queue ##\n");
-    List_last(medium_priority);
-    while(List_curr(medium_priority) != NULL){
-        PCB* item = List_curr(medium_priority);
-        printf("Process ID: %d\n", item->pid);
-        printf("    State: %s\n", item->state);
-        printf("    Message: %s\n", item->proc_message);
-        List_prev(medium_priority);
-    }
-    if (List_count(medium_priority) == 0) {
-        printf("No process in this queue.\n");
-    }
+    printList(medium_priority);
 
     printf("\n## Low priority queue ##\n");
-    List_last(low_priority);
-    while(List_curr(low_priority) != NULL){
-        PCB* item = List_curr(low_priority);
-        printf("Process ID: %d\n", item->pid);
-        printf("    State: %s\n", item->state);
-        printf("    Message: %s\n", item->proc_message);
-        List_prev(low_priority);
-    }
-    if (List_count(low_priority) == 0) {
-        printf("No process in this queue.\n");
-    }
+    printList(low_priority);
 
     printf("\n## Queue of processes waiting on a send operation ##\n");
-    List_last(send_queue);
-    while(List_curr(send_queue) != NULL){
-        PCB* item = List_curr(send_queue);
-        printf("Process ID: %d\n", item->pid);
-        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
-        printf("    State: %s\n", item->state);
-        printf("    Message: %s\n", item->proc_message);
-        List_prev(send_queue);
-    }
-    if (List_count(send_queue) == 0) {
-        printf("No process in this queue.\n");
-    }
+    printList(send_queue);
 
     printf("\n## Queue of processes waiting on a receive operation ##\n");
-    List_last(receive_queue);
-    while(List_curr(receive_queue) != NULL){
-        PCB* item = List_curr(receive_queue);
-        printf("Process ID: %d\n", item->pid);
-        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
-        printf("    State: %s\n", item->state);
-        printf("    Message: %s\n", item->proc_message);
-        List_prev(receive_queue);
-    }
-    if (List_count(receive_queue) == 0) {
-        printf("No process in this queue.\n");
+    printList(receive_queue);
+
+    List_last(all_semaphores);
+    while(List_curr(all_semaphores) != NULL){
+        semaphore* item = List_curr(all_semaphores);
+        printf("\n## Block list of semaphore ID %d ##\n", item->sid);
+        printList(item->proc_list);
+        List_prev(all_semaphores);
     }
 }
 
@@ -508,9 +468,6 @@ int main() {
                 printf("Killed process %s", pid);
                 printf("Success\n");
             }
-        }
-        if(command == 'A' || command == 'a'){
-            printList(all_jobs);
         }
         if(command == 'L' || command == 'l'){
             List* queues = List_create();
