@@ -28,3 +28,5 @@ List* all_semaphores;
 
 // Init process
 PCB* init_process;
+
+int kill(int pid);
