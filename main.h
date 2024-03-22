@@ -1,6 +1,9 @@
 #include "list.h"
 #include <string.h>
 
+#define SUCCESS 0
+#define FAIL -1
+
 // Process control block
 typedef struct {
     int pid;        // Process ID
