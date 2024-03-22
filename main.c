@@ -237,18 +237,24 @@ int kill(int pid) {
 
 int newSemaphore(int sid, int value) {
     // Check if semaphore ID is from 0 - 4
-    if (sid < 0 || sid > 4) { return FAIL; }
-    
-    // Check if 5 semaphores are already available
-    if (total_sem >= 5) { return FAIL; }
+    if (sid < 0 || sid > 4) { 
+        printf("Semaphore ID is out of range. It should be from 0 - 4.\n");
+        return FAIL; 
+    }
 
     // Check if the semaphore has already been created
     List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem != NULL) { return FAIL; }
+    if (searched_sem != NULL) { 
+        printf("Semaphore with ID %d was already created.\n", sid);
+        return FAIL; 
+    }
 
     // Check if initial value is < 0
-    if (value < 0) { return FAIL; }
+    if (value < 0) { 
+        printf("Initial value should be >= 0.\n");
+        return FAIL; 
+    }
 
     // Otherwise, create semaphore
     semaphore* new_sem = (semaphore*)malloc(sizeof(semaphore));
@@ -271,7 +277,10 @@ int semaphoreP(int sid) {
     // Search for targeted semaphore
     List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem == NULL) { return FAIL; }
+    if (searched_sem == NULL) { 
+        printf("Error. Input semaphore ID is not available.\n");
+        return FAIL; 
+    }
 
     // Decrement value of semaphore
     searched_sem->value--;
@@ -287,11 +296,14 @@ int semaphoreP(int sid) {
             // Block running process
             strcpy(curr_running->state, "blocked");
 
-            // Replace running process with a new proccess
-            PCB* running_process = getProcess();
-            
             // fail if running process is init
-            if (running_process->pid == 0) { return FAIL; }
+            if (curr_running->pid == 0) { 
+                printf("Error. Can't block init process.\n");
+                return FAIL; 
+            }
+
+            // Replace running process with a new proccess
+            getProcess();
 
             printf("Blocked process with ID: %d.\n", temp_process->pid);
         }
@@ -310,7 +322,10 @@ int semaphoreV(int sid) {
     // Search for targeted semaphore
     List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
-    if (searched_sem == NULL) { return FAIL; }
+    if (searched_sem == NULL) { 
+        printf("Error. Input semaphore ID is not available.\n");
+        return FAIL; 
+    }
 
     // Increment value of semaphore
     searched_sem->value++;
@@ -318,9 +333,6 @@ int semaphoreV(int sid) {
 
     // Get a process from proc_list and wake it up
     if (searched_sem->value <= 0) {
-        // Fail if proc_list is empty
-        if (List_count(searched_sem->proc_list) == 0) { return FAIL; }
-
         // Remove a process from proc_list & set it to ready
         PCB* waken_proc = List_trim(searched_sem->proc_list);
         strcpy(waken_proc->state, "ready");
