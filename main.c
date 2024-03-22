@@ -50,11 +50,15 @@ void terminateProgram(){
     List_free(all_jobs, procFree);
     // Free semaphore list
 
+    // Free init process
+
 }
 
 // Function to run the next ready process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 PCB* getProcess() {
     PCB* running_process = NULL;
+
+    // Get new running process from appropriate priority queue
     if (List_count(high_priority) != 0) {
         running_process = List_trim(high_priority);
     }
@@ -75,6 +79,7 @@ PCB* getProcess() {
         List_remove(all_jobs);
     }
 
+    // Set state to running
     strcpy(running_process->state, "running");
     curr_running = running_process;
 
@@ -103,17 +108,21 @@ void printList(List* list){
     }
 }
 
+// Bring process back to ready queue
 void toReadyQueue(PCB* process){
     int priority = process->priority;
+    
+    // TO-DO: Change state of process to 'ready'
+
     if(priority == 0){
-            List_prepend(high_priority, process);
-        }
-        else if(priority == 1){
-            List_prepend(medium_priority, process);
-        }
-        else {
-            List_prepend(low_priority, process);
-        }
+        List_prepend(high_priority, process);
+    }
+    else if(priority == 1){
+        List_prepend(medium_priority, process);
+    }
+    else {
+        List_prepend(low_priority, process);
+    }
 
     // Put into list of all jobs
     List_prepend(all_jobs, process);
@@ -121,7 +130,7 @@ void toReadyQueue(PCB* process){
 
 // Startup
 void startUp() {
-    // Create 5 queues 
+    // Create all queues 
     high_priority = List_create();
     medium_priority = List_create();
     low_priority = List_create();
@@ -137,7 +146,7 @@ void startUp() {
     curr_running = init_process;
 }
 
-// function for create PCB (C command)
+// Function for create PCB (C command)
 int createPCB(int priority){
     PCB* new_process = (PCB*)malloc(sizeof(PCB));
 
@@ -175,8 +184,11 @@ int fork() {
 }
 
 int kill(int pid) {
+    // Search for process
     List_first(all_jobs);
     void* pcb_searched = List_search(all_jobs, searchPid, &pid);
+
+    // If running process is init OR process can't be found, cannot kill
     if (curr_running->pid == 0 && List_count(all_jobs) == 0){
         printf("Error, cannot kill init process!\n");
         return 0;
@@ -186,18 +198,20 @@ int kill(int pid) {
         return 0;
     }
 
-    // What if the current running is the one need to be killed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // TO-DO: What if the current running is the one need to be killed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
-    List* queues = List_create();
-    List_prepend(queues, high_priority);
-    List_prepend(queues, medium_priority);
-    List_prepend(queues, low_priority);
-    List_prepend(queues, send_queue);
-    List_prepend(queues, receive_queue);
-    // Check semaphores lists to kill
+    // Create all_queues to check for pid of process
+    List* all_queues = List_create();
+    List_prepend(all_queues, high_priority);
+    List_prepend(all_queues, medium_priority);
+    List_prepend(all_queues, low_priority);
+    List_prepend(all_queues, send_queue);
+    List_prepend(all_queues, receive_queue);
+    // TO-DO: Check semaphores lists to kill
 
-    while(List_curr(queues) != NULL){
-        List* list = List_curr(queues);
+    // Go through all queues to kill the targeted process
+    while(List_curr(all_queues) != NULL){
+        List* list = List_curr(all_queues);
         List_first(list);
         pcb_searched = List_search(list, searchPid, &pid);
         if (pcb_searched != NULL){
@@ -209,7 +223,7 @@ int kill(int pid) {
             List_remove(all_jobs);
             // REMEMBER TO FREE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
         }
-        List_next(queues);
+        List_next(all_queues);
     }
 
     return 1;
@@ -221,6 +235,11 @@ int newSemaphore(int sid, int value) {
     
     // Check if 5 semaphores are already available
     if (total_sem >= 5) { return FAIL; }
+
+    // Check if the semaphore has already been created
+    List_first(all_semaphores);
+    semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
+    if (searched_sem != NULL) { return FAIL; }
 
     // Check if initial value is < 0
     if (value < 0) { return FAIL; }
@@ -244,6 +263,7 @@ int newSemaphore(int sid, int value) {
 
 int semaphoreP(int sid) {
     // Search for targeted semaphore
+    List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
     if (searched_sem == NULL) { return FAIL; }
 
@@ -286,6 +306,7 @@ int semaphoreP(int sid) {
 
 int semaphoreV(int sid) {
     // Search for targeted semaphore
+    List_first(all_semaphores);
     semaphore* searched_sem = List_search(all_semaphores, searchSid, &sid);
     if (searched_sem == NULL) { return FAIL; }
 
@@ -329,9 +350,6 @@ int main() {
     // Print direction to screen:
     printf("Process Scheduling Simulation\n");
     printf("Please input your command and then enter. Input '!' to end program.\n");
-
-
-
 
     while(1){
         // Check init process
