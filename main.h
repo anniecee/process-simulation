@@ -4,12 +4,14 @@
 #define SUCCESS 0
 #define FAIL -1
 
+#define MAX_LENGTH 40
+
 // Process control block struct
 typedef struct {
     int pid;        // Process ID
     int priority;   // Priority (0, 1 or 2)
     char state[10];   // State of process (running, ready, blocked, deadlocked)
-    char proc_message[100]; // Message that another process "send"s or "reply"s to this process
+    char proc_message[MAX_LENGTH]; // Message that another process "send"s or "reply"s to this process
 } PCB;
 
 // Semaphore struct
@@ -21,7 +23,7 @@ typedef struct {
 
 typedef struct {
     int rcv_id;
-    char message[100];
+    char message[MAX_LENGTH];
 } packet;
 
 // Queues

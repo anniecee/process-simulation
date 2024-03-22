@@ -85,7 +85,7 @@ PCB* getProcess() {
     }
 
     if (strcmp(running_process->proc_message, "")){
-        printf("Message received: %s", running_process->proc_message);
+        printf("%s\n", running_process->proc_message);
         // Remove message in process
         strcpy(running_process->proc_message, "");
     }
@@ -258,7 +258,7 @@ void quantum() {
 int send(int rcv_id, char* message) {
     // Check if the rcv_id exists
     List_first(all_jobs);
-    if (List_search(receive_queue, searchPid, &rcv_id) == NULL){
+    if (List_search(all_jobs, searchPid, &rcv_id) == NULL){
         printf("Error, receive ID not found!\n");
         return FAIL;
     }
@@ -276,7 +276,7 @@ int send(int rcv_id, char* message) {
     PCB* rcv_process = List_search(receive_queue, searchPid, &rcv_id);
     if (rcv_process != NULL){
         // // Unblock recv process and put back to ready queue
-        strcpy(rcv_process->proc_message, message);
+        strcpy(rcv_process->proc_message, strcat("Message received: ", message));
         toReadyQueue(rcv_process);
 
         // Remove process from receive wait
@@ -299,7 +299,39 @@ int send(int rcv_id, char* message) {
     return SUCCESS;
 }
 
-void receive(){
+int reply(int rcv_id, char* message) {
+    // Check if the rcv_id exists
+    List_first(all_jobs);
+    if (List_search(all_jobs, searchPid, &rcv_id) == NULL){
+        printf("Error, receive ID not found!\n");
+        return FAIL;
+    }
+    if (rcv_id == 0) {
+        printf("Error, cannot reply to init process!\n");
+        return FAIL;
+    }
+
+    // Search for the send wait process
+    List_first(send_queue);
+    PCB* send_wait_process = List_search(send_queue, searchPid, &rcv_id);
+    if (send_wait_process != NULL){
+        // Unblock send process and put back to ready queue
+        strcpy(send_wait_process->proc_message, strcat("Reply received: ", message));
+        toReadyQueue(send_wait_process);
+
+        // Remove process from send wait
+        List_remove(send_queue);
+    }
+    else{
+        // If no process found in send wait, return fail
+        printf("Error, there is no process waiting for reply");
+        return FAIL;
+    }
+
+    return SUCCESS;
+}
+
+int receive(){
     // Check if init process call receive
     if (curr_running->pid == 0) {
         printf("Error, cannot operate Receive on init process!\n");
@@ -323,6 +355,8 @@ void receive(){
         List_prepend(receive_queue, curr_running);
         getProcess();
     }
+
+    return SUCCESS;
 }
 
 int newSemaphore(int sid, int value) {
@@ -486,6 +520,9 @@ void printList(List* list) {
 }
 
 void totalInfo(){
+    printf("\n## Current running process is:##\n");
+    procInfo(curr_running->pid);
+
     printf("\n## High priority queue:##\n");
     printList(high_priority);
 
@@ -501,6 +538,9 @@ void totalInfo(){
     printf("\n## Queue of processes waiting on a receive operation ##\n");
     printList(receive_queue);
 
+    if (List_count(all_semaphores) == 0){
+        printf("\n## No semaphores created yet ##\n");
+    }
     List_last(all_semaphores);
     while(List_curr(all_semaphores) != NULL){
         semaphore* item = List_curr(all_semaphores);
@@ -509,7 +549,6 @@ void totalInfo(){
         List_prev(all_semaphores);
     }
 }
-
 
 int main() {
 
@@ -614,10 +653,10 @@ int main() {
         if (command == 'S' || command == 's') {
             printf("You chose Send command, please input process ID and message with a space in between ('id' 'message'): ");
             // Get receive id with message and separate those two
-            char input_message[1000];
-            fgets(input_message, 1000, stdin);
+            char input_message[MAX_LENGTH + 2];
+            fgets(input_message, MAX_LENGTH + 2, stdin);
             int rcv_id = atoi(&input_message[0]);
-            char message[1000];
+            char message[MAX_LENGTH];
             strcpy(message, &input_message[2]);
 
             if (send(rcv_id, message) == SUCCESS) {
@@ -626,19 +665,35 @@ int main() {
             else{
                 printf("Send failed!\n");
             }
-
         }
       
         if (command == 'R' || command == 'r') {
             printf("You chose Receive command!\n");
 
-            receive();
-            printf("Receive successfull!\n");
-            
+
+            if (receive() == SUCCESS) {
+                printf("Receive successfull!\n");
+            }
+            else{
+                printf("Receive failed!\n");
+            }
         }
       
         if (command == 'Y' || command == 'y') {
+            printf("You chose Reply command, please input process ID and message with a space in between ('id' 'message'): ");
+            // Get receive id with message and separate those two
+            char input_message[MAX_LENGTH + 2];
+            fgets(input_message, MAX_LENGTH + 2, stdin);
+            int rcv_id = atoi(&input_message[0]);
+            char message[MAX_LENGTH];
+            strcpy(message, &input_message[2]);
 
+            if (reply(rcv_id, message) == SUCCESS) {
+                printf("Reply successfull!\n");
+            }
+            else{
+                printf("Reply failed!\n");
+            }
         }
         if (command == 'N' || command == 'n') {
             printf("You chose New Semaphore command. Please input semaphore ID (from 0 to 4): ");
