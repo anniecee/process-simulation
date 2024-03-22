@@ -11,6 +11,18 @@ static PCB* curr_running = NULL;
 // Semaphore information
 static int total_sem = 0;
 
+
+// using for List_search function for Packet
+bool searchPacket(void* pItem, void* pComparisonArg) {
+    // Return true if rcv_id matches comparision arg
+    if(((packet*)pItem)->rcv_id == *(int*)pComparisonArg){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
 // using for List_search function for Process ID
 bool searchPid(void* pItem, void* pComparisonArg) {
     // Return true if pid matches comparision arg
@@ -72,6 +84,12 @@ PCB* getProcess() {
         running_process = init_process;
     }
 
+    if (strcmp(running_process->proc_message, "")){
+        printf("Message received: %s", running_process->proc_message);
+        // Remove message in process
+        strcpy(running_process->proc_message, "");
+    }
+
     // Remove the running process from list of all ready jobs
     List_first(all_jobs);
     if (running_process->pid != 0){
@@ -110,9 +128,10 @@ void printList(List* list){
 
 // Bring process back to ready queue
 void toReadyQueue(PCB* process){
+
+    // Change state of process to 'ready'
+    strcpy(process->state, "ready");
     int priority = process->priority;
-    
-    // TO-DO: Change state of process to 'ready'
 
     if(priority == 0){
         List_prepend(high_priority, process);
@@ -138,6 +157,7 @@ void startUp() {
     receive_queue = List_create();
     all_jobs = List_create();
     all_semaphores = List_create();
+    packet_list = List_create();
 
     // Create init_process
     init_process = (PCB*)malloc(sizeof(PCB));
@@ -227,6 +247,17 @@ int kill(int pid) {
     }
 
     return 1;
+}
+
+void quantum() {
+    if (curr_running->pid != 0){
+        // Update new priority if priority is not low
+        if (curr_running->priority != 2){
+            curr_running->priority += 1;
+        }
+        toReadyQueue(curr_running);
+        getProcess();
+    }
 }
 
 int newSemaphore(int sid, int value) {
@@ -425,15 +456,9 @@ int main() {
         }
         if (command == 'Q') {
             printf("You called Quantum!\n");
-            if (curr_running->pid != 0){
-                // Update new priority if priority is not low
-                if (curr_running->priority != 2){
-                    curr_running->priority += 1;
-                }
-                strcpy(curr_running->state, "ready");
-                toReadyQueue(curr_running);
-                getProcess();
-            }
+            
+            quantum();
+
             printf("Quantum successful\n");
         }
         if (command == 'S') {
@@ -447,36 +472,42 @@ int main() {
 
             // Search for the recv process
             List_first(receive_queue);
-            PCB* rcv_search = List_search(receive_queue, searchPid, &rcv_id);
-            if (rcv_search != NULL){
+            PCB* rcv_process = List_search(receive_queue, searchPid, &rcv_id);
+            if (rcv_process != NULL){
                 // // Unblock recv process and put back to ready queue
-                // strcpy(rcv_search->proc_message, message);
-                // strcpy(rcv_search->state, "ready");
-                // toReadyQueue(rcv_search);
+                strcpy(rcv_process->proc_message, message);
+                toReadyQueue(rcv_process);
 
-                // // Remove process from receive wait
-                // List_remove(receive_queue);
+                // Remove process from receive wait
+                List_remove(receive_queue);
             }
             else{
-                // If no process found in recv wait, block the sender until there is a recv
-                strcpy(curr_running->proc_message, message);
+                // If no process found in recv wait, append the message and the rcv_id in packet_list
+                packet* send_packet = (packet*)malloc(sizeof(packet));
+
+                send_packet->rcv_id = rcv_id;
+                strcpy(send_packet->message, message);
+                List_prepend(packet_list, send_packet);
+                
+                // Block the sender until there is a reply
                 strcpy(curr_running->state, "blocked");
                 List_prepend(send_queue, curr_running);
                 getProcess();
             }
-
-
-
         }
         if (command == 'R') {
-            printf("You chose Receive command!");
+            printf("You chose Receive command!\n");
 
-            // Search for the send process
-            List_first(receive_queue);
-            PCB* send_search = List_search(send_queue, searchPid, &(curr_running->pid));
-            if (send_search != NULL){
-                // Take message from sender
-                printf("Message received: %s", send_search->proc_message);
+            // Search for the send packet
+            List_first(packet_list);
+            packet* send_packet = List_search(packet_list, searchPacket, &(curr_running->pid));
+            if (send_packet != NULL){
+                // Print message
+                printf("Message received: %s\n", send_packet->message);
+
+                // Free the removed packet
+                packet* removed_packet = List_remove(packet_list);
+                free(removed_packet);
             }
             else{
                 // If no process found in send wait, block the recv until there is a send
@@ -484,9 +515,9 @@ int main() {
                 List_prepend(receive_queue, curr_running);
                 getProcess();
             }
-            
         }
         if (command == 'Y') {
+            
 
         }
         if (command == 'N') {
