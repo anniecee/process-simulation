@@ -344,6 +344,30 @@ int semaphoreV(int sid) {
     return SUCCESS;
 }
 
+int procInfo(int pid) {
+    // Search for process
+    List_first(all_jobs);
+    PCB* pcb_searched = List_search(all_jobs, searchPid, &pid);
+
+    if (pcb_searched == NULL && curr_running->pid != pid) { 
+        printf("Error. Input process ID is not available.\n");
+        return FAIL; 
+    }
+    // Set pcb_searched to currently running process if the requested pid is running process
+    if (pcb_searched == NULL && curr_running->pid == pid) {
+        pcb_searched = curr_running;
+    }
+
+    // Dump information
+    printf("Process Information:\n");
+    printf("Process ID: %d\n", pcb_searched->pid);
+    printf("Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", pcb_searched->priority);
+    printf("State: %s\n", pcb_searched->state);
+    printf("Message: %s\n", pcb_searched->proc_message);
+
+    return SUCCESS;
+}
+
 int main() {
 
     // startUp() called
@@ -562,7 +586,20 @@ int main() {
             }
         }
         if (command == 'I') {
+            printf("You chose Process Information command. Please input process ID: ");
+            
+            // Get parameter and convert char to int
+            char pid[3];
+            fgets(pid, 3, stdin);
+            int pid_num = atoi(pid);
 
+            // Call procInfo()
+            int result = procInfo(pid_num);
+            if (result == FAIL) {
+                printf("Fail \n");
+            } else {
+                printf("Success \n");
+            }
         }
         if (command == 'T') {
 
