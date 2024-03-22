@@ -414,6 +414,7 @@ int semaphoreP(int sid) {
 
             // Block running process
             strcpy(curr_running->state, "blocked");
+            List_prepend(all_jobs, curr_running);
 
             // Replace running process with a new proccess
             getProcess();
