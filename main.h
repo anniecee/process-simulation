@@ -4,7 +4,7 @@
 #define SUCCESS 0
 #define FAIL -1
 
-// Process control block
+// Process control block struct
 typedef struct {
     int pid;        // Process ID
     int priority;   // Priority (0, 1 or 2)
@@ -12,6 +12,7 @@ typedef struct {
     char proc_message[100]; // Message that another process "send"s or "reply"s to this process
 } PCB;
 
+// Semaphore struct
 typedef struct {
     int sid;         // Semaphore ID (from 0 to 4)
     int value;       // Value of semaphore
@@ -26,7 +27,7 @@ List* send_queue;
 List* receive_queue;
 List* all_jobs;
 
-// List of semaphore
+// Semaphore list
 List* all_semaphores; 
 
 // Init process
