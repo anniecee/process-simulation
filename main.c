@@ -260,6 +260,76 @@ void quantum() {
     }
 }
 
+int send(int rcv_id, char* message) {
+    // Check if the rcv_id exists
+    List_first(all_jobs);
+    if (List_search(receive_queue, searchPid, &rcv_id) == NULL){
+        printf("Error, receive ID not found!\n");
+        return FAIL;
+    }
+    if (rcv_id == 0) {
+        printf("Error, cannot send to init process!\n");
+        return FAIL;
+    }
+    if (curr_running->pid == 0) {
+        printf("Error, cannot operate Send on init process!\n");
+        return FAIL;
+    }
+
+    // Search for the recv process
+    List_first(receive_queue);
+    PCB* rcv_process = List_search(receive_queue, searchPid, &rcv_id);
+    if (rcv_process != NULL){
+        // // Unblock recv process and put back to ready queue
+        strcpy(rcv_process->proc_message, message);
+        toReadyQueue(rcv_process);
+
+        // Remove process from receive wait
+        List_remove(receive_queue);
+    }
+    else{
+        // If no process found in recv wait, append the message and the rcv_id in packet_list
+        packet* send_packet = (packet*)malloc(sizeof(packet));
+
+        send_packet->rcv_id = rcv_id;
+        strcpy(send_packet->message, message);
+        List_prepend(packet_list, send_packet);
+        
+        // Block the sender until there is a reply
+        strcpy(curr_running->state, "blocked");
+        List_prepend(send_queue, curr_running);
+        getProcess();
+    }
+
+    return SUCCESS;
+}
+
+void receive(){
+    // Check if init process call receive
+    if (curr_running->pid == 0) {
+        printf("Error, cannot operate Receive on init process!\n");
+        return FAIL;
+    }
+
+    // Search for the send packet
+    List_first(packet_list);
+    packet* send_packet = List_search(packet_list, searchPacket, &(curr_running->pid));
+    if (send_packet != NULL){
+        // Print message
+        printf("Message received: %s\n", send_packet->message);
+
+        // Free the removed packet
+        packet* removed_packet = List_remove(packet_list);
+        free(removed_packet);
+    }
+    else{
+        // If no process found in send wait, block the recv until there is a send
+        strcpy(curr_running->state, "blocked");
+        List_prepend(receive_queue, curr_running);
+        getProcess();
+    }
+}
+
 int newSemaphore(int sid, int value) {
     // Check if semaphore ID is from 0 - 4
     if (sid < 0 || sid > 4) { return FAIL; }
@@ -470,51 +540,19 @@ int main() {
             char message[1000];
             strcpy(message, &input_message[2]);
 
-            // Search for the recv process
-            List_first(receive_queue);
-            PCB* rcv_process = List_search(receive_queue, searchPid, &rcv_id);
-            if (rcv_process != NULL){
-                // // Unblock recv process and put back to ready queue
-                strcpy(rcv_process->proc_message, message);
-                toReadyQueue(rcv_process);
-
-                // Remove process from receive wait
-                List_remove(receive_queue);
+            if (send(rcv_id, message) == SUCCESS) {
+                printf("Send successfull!\n");
             }
             else{
-                // If no process found in recv wait, append the message and the rcv_id in packet_list
-                packet* send_packet = (packet*)malloc(sizeof(packet));
-
-                send_packet->rcv_id = rcv_id;
-                strcpy(send_packet->message, message);
-                List_prepend(packet_list, send_packet);
-                
-                // Block the sender until there is a reply
-                strcpy(curr_running->state, "blocked");
-                List_prepend(send_queue, curr_running);
-                getProcess();
+                printf("Send failed!\n");
             }
+
         }
         if (command == 'R') {
             printf("You chose Receive command!\n");
 
-            // Search for the send packet
-            List_first(packet_list);
-            packet* send_packet = List_search(packet_list, searchPacket, &(curr_running->pid));
-            if (send_packet != NULL){
-                // Print message
-                printf("Message received: %s\n", send_packet->message);
-
-                // Free the removed packet
-                packet* removed_packet = List_remove(packet_list);
-                free(removed_packet);
-            }
-            else{
-                // If no process found in send wait, block the recv until there is a send
-                strcpy(curr_running->state, "blocked");
-                List_prepend(receive_queue, curr_running);
-                getProcess();
-            }
+            receive();
+            printf("Receive successfull!\n");
         }
         if (command == 'Y') {
             
