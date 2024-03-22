@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "main.h"
 
 // Process information
@@ -143,6 +144,7 @@ int createPCB(int priority){
     new_process->pid = id++;
     new_process->priority = priority;
     strcpy(new_process->state, "ready");
+    strcpy(new_process->proc_message, "");
 
     // If it is the first process created, set current running process and init process to ready
     if(curr_running->pid == 0){
@@ -256,7 +258,7 @@ int semaphoreP(int sid) {
             List_prepend(searched_semaphore->proc_list, curr_running);
 
             // Block running process
-            strcpy(curr_running->state, "block");
+            strcpy(curr_running->state, "blocked");
 
             // Replace running process with a new proccess
             PCB* running_process = getProcess();
@@ -384,10 +386,54 @@ int main() {
             printf("Quantum successful\n");
         }
         if (command == 'S') {
+            printf("You chose Send command, please input process ID and message with a space in between ('id' 'message'): ");
+            // Get receive id with message and separate those two
+            char input_message[1000];
+            fgets(input_message, 1000, stdin);
+            int rcv_id = atoi(&input_message[0]);
+            char message[1000];
+            strcpy(message, &input_message[2]);
+
+            // Search for the recv process
+            List_first(receive_queue);
+            PCB* rcv_search = List_search(receive_queue, searchPid, &rcv_id);
+            if (rcv_search != NULL){
+                // // Unblock recv process and put back to ready queue
+                // strcpy(rcv_search->proc_message, message);
+                // strcpy(rcv_search->state, "ready");
+                // toReadyQueue(rcv_search);
+
+                // // Remove process from receive wait
+                // List_remove(receive_queue);
+            }
+            else{
+                // If no process found in recv wait, block the sender until there is a recv
+                strcpy(curr_running->proc_message, message);
+                strcpy(curr_running->state, "blocked");
+                List_prepend(send_queue, curr_running);
+                getProcess();
+            }
+
+
 
         }
         if (command == 'R') {
+            printf("You chose Receive command!");
 
+            // Search for the send process
+            List_first(receive_queue);
+            PCB* send_search = List_search(send_queue, searchPid, &(curr_running->pid));
+            if (send_search != NULL){
+                // Take message from sender
+                printf("Message received: %s", send_search->proc_message);
+            }
+            else{
+                // If no process found in send wait, block the recv until there is a send
+                strcpy(curr_running->state, "blocked");
+                List_prepend(receive_queue, curr_running);
+                getProcess();
+            }
+            
         }
         if (command == 'Y') {
 
