@@ -19,6 +19,11 @@ typedef struct {
     List *proc_list; // List of processes waiting on the semaphore
 } semaphore;
 
+typedef struct {
+    int rcv_id;
+    char message[100];
+} packet;
+
 // Queues
 List* high_priority; // priority = 0
 List* medium_priority; // priority = 1
@@ -26,6 +31,7 @@ List* low_priority; // priority = 2
 List* send_queue;
 List* receive_queue;
 List* all_jobs;
+List* packet_list;
 
 // Semaphore list
 List* all_semaphores; 
