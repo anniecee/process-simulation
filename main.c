@@ -8,10 +8,6 @@
 static int id = 0;
 static PCB* curr_running = NULL;
 
-// Semaphore information
-static int total_sem = 0;
-
-
 // using for List_search function for Packet
 bool searchPacket(void* pItem, void* pComparisonArg) {
     // Return true if rcv_id matches comparision arg
@@ -390,9 +386,8 @@ int newSemaphore(int sid, int value) {
 
     printf("Created semaphore with ID: %d and initial value %d.\n", sid, value);
 
-    // Add semaphore to list & increment total_sem
+    // Add semaphore to list
     List_prepend(all_semaphores, new_sem);
-    total_sem++;
 
     return SUCCESS;
 }
@@ -420,19 +415,18 @@ int semaphoreP(int sid) {
             // Block running process
             strcpy(curr_running->state, "blocked");
 
-            // fail if running process is init
-            if (curr_running->pid == 0) { 
-                printf("Error. Can't block init process.\n");
-                return FAIL; 
-            }
-
             // Replace running process with a new proccess
             getProcess();
 
             printf("Blocked process with ID: %d.\n", temp_process->pid);
         }
         // fail if no process is running or running process is init
-        else { 
+        else if (curr_running->pid == 0){
+            printf("Error. Can't block init process.\n");
+            return FAIL; 
+        }
+        else if (curr_running == NULL) {
+            printf("Error. No process is currently running to block.\n");
             return FAIL; 
         }
     } else {
