@@ -62,7 +62,7 @@ void terminateProgram(){
     List_free(all_semaphores, freeItem);
 
     // Free init process
-    free(init_proccess);
+    free(init_process);
 }
 
 // Function to run the next ready process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -221,7 +221,14 @@ int kill(int pid) {
     List_prepend(all_queues, low_priority);
     List_prepend(all_queues, send_queue);
     List_prepend(all_queues, receive_queue);
-    // TO-DO: Check semaphores lists to kill
+
+    // Add semaphores lists to all_queues to kill
+    List_first(all_semaphores);
+    while(List_curr(all_semaphores) != NULL) {
+        semaphore* sem = List_curr(all_semaphores);
+        List_prepend(all_queues, sem->proc_list);
+        List_next(all_semaphores);
+    }
 
     // Go through all queues to kill the targeted process
     while(List_curr(all_queues) != NULL){
@@ -234,8 +241,8 @@ int kill(int pid) {
             // Remove in all jobs lists
             List_first(all_jobs);
             List_search(all_jobs, searchPid, &pid);
-            List_remove(all_jobs);
-            // REMEMBER TO FREE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+            PCB* removed_process = List_remove(all_jobs);
+            free(removed_process);
         }
         List_next(all_queues);
     }
