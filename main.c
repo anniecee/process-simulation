@@ -267,13 +267,15 @@ int send(int rcv_id, char* message) {
         return FAIL;
     }
 
+    // Set up print info
+    char send[1000];
+    strcpy(send, "Message received from process ID %d: ", curr_running->pid);
+
     // Search for the recv process
     List_first(receive_queue);
     PCB* rcv_process = List_search(receive_queue, searchPid, &rcv_id);
     if (rcv_process != NULL){
         // // Unblock recv process and put back to ready queue
-        char send[1000];
-        strcpy(send, "Message received: ");
         strcpy(rcv_process->proc_message, strcat(send, message));
         toReadyQueue(rcv_process);
 
@@ -285,7 +287,7 @@ int send(int rcv_id, char* message) {
         packet* send_packet = (packet*)malloc(sizeof(packet));
 
         send_packet->rcv_id = rcv_id;
-        strcpy(send_packet->message, message);
+        strcpy(send_packet->message, strcat(send, message));
         List_prepend(packet_list, send_packet);
         
         // Block the sender until there is a reply
@@ -316,7 +318,7 @@ int reply(int rcv_id, char* message) {
     if (send_wait_process != NULL){
         // Unblock send process and put back to ready queue
         char reply[1000];
-        strcpy(reply, "Reply received: ");
+        strcpy(reply, "Reply received from process ID %d: ", curr_running->pid);
         strcpy(send_wait_process->proc_message, strcat(reply, message));
         toReadyQueue(send_wait_process);
 
