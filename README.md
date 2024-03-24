@@ -18,6 +18,3 @@
 
 11. Semaphore V:
 - After incrementing value and checking if value <= 0, we will get a process from block list of semaphore and wake it up by setting state as 'ready' and put the process into appropriate priority queue.
-
-12. ProcInfo:
-13. TotalInfo:

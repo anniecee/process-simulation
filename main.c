@@ -41,7 +41,7 @@ bool searchSid(void* sItem, void* pComparisonArg) {
     }
 }
 
-void procFree(void* item){
+void freeItem(void* item){
     if (item != NULL){
         // free(((PCB*)item)->proc_message);
         free(item);
@@ -50,16 +50,19 @@ void procFree(void* item){
 
 void terminateProgram(){
     // Free queue lists
-    List_free(high_priority, procFree);
-    List_free(medium_priority, procFree);
-    List_free(low_priority, procFree);
-    List_free(send_queue, procFree);
-    List_free(receive_queue, procFree);
-    List_free(all_jobs, procFree);
+    List_free(high_priority, freeItem);
+    List_free(medium_priority, freeItem);
+    List_free(low_priority, freeItem);
+    List_free(send_queue, freeItem);
+    List_free(receive_queue, freeItem);
+    List_free(all_jobs, freeItem);
+    List_free(packet_list, freeItem);
+
     // Free semaphore list
+    List_free(all_semaphores, freeItem);
 
     // Free init process
-
+    free(init_proccess);
 }
 
 // Function to run the next ready process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -272,7 +275,7 @@ int send(int rcv_id, char* message) {
     int curr_pid = curr_running->pid;
     sprintf(send, "Message received from process ID %d: ", curr_pid);
 
-    // Search for the recv process
+    // Search for the recv process in receive_queue
     List_first(receive_queue);
     PCB* rcv_process = List_search(receive_queue, searchPid, &rcv_id);
     if (rcv_process != NULL){
@@ -356,7 +359,7 @@ int receive(){
         free(removed_packet);
     }
     else{
-        // If no process found in send wait, block the recv until there is a send
+        // If no process found in packet_list, block the receiver until there is a send
         strcpy(curr_running->state, "blocked");
         List_prepend(receive_queue, curr_running);
         List_prepend(all_jobs, curr_running);
