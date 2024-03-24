@@ -269,7 +269,8 @@ int send(int rcv_id, char* message) {
 
     // Set up print info
     char send[1000];
-    strcpy(send, "Message received from process ID %d: ", curr_running->pid);
+    int curr_pid = curr_running->pid;
+    sprintf(send, "Message received from process ID %d: ", curr_pid);
 
     // Search for the recv process
     List_first(receive_queue);
@@ -289,13 +290,13 @@ int send(int rcv_id, char* message) {
         send_packet->rcv_id = rcv_id;
         strcpy(send_packet->message, strcat(send, message));
         List_prepend(packet_list, send_packet);
-        
-        // Block the sender until there is a reply
-        strcpy(curr_running->state, "blocked");
-        List_prepend(send_queue, curr_running);
-        List_prepend(all_jobs, curr_running);
-        getProcess();
     }
+
+    // Block the sender until there is a reply
+    strcpy(curr_running->state, "blocked");
+    List_prepend(send_queue, curr_running);
+    List_prepend(all_jobs, curr_running);
+    getProcess();
 
     return SUCCESS;
 }
@@ -318,7 +319,9 @@ int reply(int rcv_id, char* message) {
     if (send_wait_process != NULL){
         // Unblock send process and put back to ready queue
         char reply[1000];
-        strcpy(reply, "Reply received from process ID %d: ", curr_running->pid);
+        int curr_pid = curr_running->pid;
+        sprintf(reply, "Reply received from process ID %d: ", curr_pid);
+        
         strcpy(send_wait_process->proc_message, strcat(reply, message));
         toReadyQueue(send_wait_process);
 
