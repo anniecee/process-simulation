@@ -272,7 +272,9 @@ int send(int rcv_id, char* message) {
     PCB* rcv_process = List_search(receive_queue, searchPid, &rcv_id);
     if (rcv_process != NULL){
         // // Unblock recv process and put back to ready queue
-        strcpy(rcv_process->proc_message, strcat("Message received: ", message));
+        char send[1000];
+        strcpy(send, "Message received: ");
+        strcpy(rcv_process->proc_message, strcat(send, message));
         toReadyQueue(rcv_process);
 
         // Remove process from receive wait
@@ -289,6 +291,7 @@ int send(int rcv_id, char* message) {
         // Block the sender until there is a reply
         strcpy(curr_running->state, "blocked");
         List_prepend(send_queue, curr_running);
+        List_prepend(all_jobs, curr_running);
         getProcess();
     }
 
@@ -312,7 +315,9 @@ int reply(int rcv_id, char* message) {
     PCB* send_wait_process = List_search(send_queue, searchPid, &rcv_id);
     if (send_wait_process != NULL){
         // Unblock send process and put back to ready queue
-        strcpy(send_wait_process->proc_message, strcat("Reply received: ", message));
+        char reply[1000];
+        strcpy(reply, "Reply received: ");
+        strcpy(send_wait_process->proc_message, strcat(reply, message));
         toReadyQueue(send_wait_process);
 
         // Remove process from send wait
@@ -349,6 +354,7 @@ int receive(){
         // If no process found in send wait, block the recv until there is a send
         strcpy(curr_running->state, "blocked");
         List_prepend(receive_queue, curr_running);
+        List_prepend(all_jobs, curr_running);
         getProcess();
     }
 
