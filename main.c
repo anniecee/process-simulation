@@ -65,7 +65,7 @@ void terminateProgram(){
     free(init_process);
 }
 
-// Function to run the next ready process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// Function to run the next ready process
 PCB* getProcess() {
     PCB* running_process = NULL;
 
@@ -203,17 +203,23 @@ int kill(int pid) {
     void* pcb_searched = List_search(all_jobs, searchPid, &pid);
 
     // If running process is init OR process can't be found, cannot kill
-    if (curr_running->pid == 0 && List_count(all_jobs) == 0){
+    if (curr_running->pid == 0){
         printf("Error, cannot kill init process!\n");
         return FAIL;
     }
-    else if (pcb_searched == NULL){
+    
+    // If the current running is the one need to be killed
+    if (curr_running->pid == pid){
+        free(curr_running);
+        getProcess();
+        return SUCCESS;
+    }
+
+    if (pcb_searched == NULL){
         printf("Error, there is no process of given id to kill!\n");
         return FAIL;
     }
 
-    // TO-DO: What if the current running is the one need to be killed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
     // Create all_queues to check for pid of process
     List* all_queues = List_create();
     List_prepend(all_queues, high_priority);
@@ -307,6 +313,7 @@ int send(int rcv_id, char* message) {
     List_prepend(send_queue, curr_running);
     List_prepend(all_jobs, curr_running);
     getProcess();
+    printf("Process is blocked in send queue!");
 
     return SUCCESS;
 }
