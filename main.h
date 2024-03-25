@@ -21,15 +21,16 @@ typedef struct {
     List *proc_list; // List of processes waiting on the semaphore
 } semaphore;
 
+// Packet struct (to hold messages)
 typedef struct {
-    int rcv_id;
+    int rcv_id;       // Receiver's ID
     char message[MAX_LENGTH];
 } packet;
 
 // Queues
-List* high_priority; // priority = 0
-List* medium_priority; // priority = 1
-List* low_priority; // priority = 2
+List* high_priority;    // priority = 0
+List* medium_priority;  // priority = 1
+List* low_priority;     // priority = 2
 List* send_queue;
 List* receive_queue;
 List* all_jobs;
@@ -41,4 +42,16 @@ List* all_semaphores;
 // Init process
 PCB* init_process;
 
+// Functions for commands
+int createPCB(int priority);
+int fork();
 int kill(int pid);
+void quantum();
+int send(int rcv_id, char* message);
+int reply(int rcv_id, char* message);
+int receive();
+int newSemaphore(int sid, int value);
+int semaphoreP(int sid);
+int semaphoreV(int sid);
+int procInfo(int pid);
+void totalInfo();

@@ -6,9 +6,29 @@
 
 // Process information
 static int id = 0;
-static PCB* curr_running = NULL;
+static PCB* curr_running = NULL;       // Currently running process
 
-// using for List_search function for Packet
+////////////////////////////////////////////////////////////////
+/////////////////////// HELPER FUNCTIONS ///////////////////////
+////////////////////////////////////////////////////////////////
+
+// Function to print list of processes/semaphores
+void printList(List* list) {
+    List_last(list);
+    while(List_curr(list) != NULL){
+        PCB* item = List_curr(list);
+        printf("Process ID: %d\n", item->pid);
+        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
+        printf("    State: %s\n", item->state);
+        printf("    Message: %s\n", item->proc_message);
+        List_prev(list);
+    }
+    if (List_count(list) == 0) {
+        printf("No process in this queue.\n");
+    }
+}
+
+// Used for List_search function for Packet
 bool searchPacket(void* pItem, void* pComparisonArg) {
     // Return true if rcv_id matches comparision arg
     if(((packet*)pItem)->rcv_id == *(int*)pComparisonArg){
@@ -19,7 +39,7 @@ bool searchPacket(void* pItem, void* pComparisonArg) {
     }
 }
 
-// using for List_search function for Process ID
+// Used for List_search function for Process ID
 bool searchPid(void* pItem, void* pComparisonArg) {
     // Return true if pid matches comparision arg
     if(((PCB*)pItem)->pid == *(int*)pComparisonArg){
@@ -30,7 +50,7 @@ bool searchPid(void* pItem, void* pComparisonArg) {
     }
 }
 
-// using for List_search function for Semaphore ID
+// Used for List_search function for Semaphore ID
 bool searchSid(void* sItem, void* pComparisonArg) {
     // Return true if sid matches comparision arg
     if(((semaphore*)sItem)->sid == *(int*)pComparisonArg){
@@ -43,7 +63,6 @@ bool searchSid(void* sItem, void* pComparisonArg) {
 
 void freeItem(void* item){
     if (item != NULL){
-        // free(((PCB*)item)->proc_message);
         free(item);
     }
 }
@@ -100,9 +119,13 @@ PCB* getProcess() {
     strcpy(running_process->state, "running");
     curr_running = running_process;
 
+    // Print scheduling information
+    printf("Current running process is process with ID: %d\n", curr_running->pid);
+
     return curr_running;
 }
 
+// Check state of init process
 void checkInit() {
     // Init process set to "running" if all priority queues are empty
     if (List_count(high_priority) == 0 && List_count(medium_priority) == 0 && List_count(low_priority) == 0) {
@@ -154,7 +177,11 @@ void startUp() {
     curr_running = init_process;
 }
 
-// Function for create PCB (C command)
+////////////////////////////////////////////////////////////////
+/////////////////// FUNCTIONS FOR EACH COMMANDS ////////////////
+////////////////////////////////////////////////////////////////
+
+// Create new process (C command)
 int createPCB(int priority){
     // Check if process priority is from 0 - 2
     if (priority < 0 || priority > 2) { return FAIL; }
@@ -181,7 +208,7 @@ int createPCB(int priority){
     return new_process->pid;
 }
 
-// fork (F command)
+// Fork (F command)
 int fork() {
     // If no process is running or the current process is init process, fork fails
     if(curr_running == NULL){
@@ -197,6 +224,7 @@ int fork() {
     return new_id;
 }
 
+// Kill (K command)
 int kill(int pid) {
     // Search for process
     List_first(all_jobs);
@@ -256,6 +284,7 @@ int kill(int pid) {
     return SUCCESS;
 }
 
+// Quantum (Q command)
 void quantum() {
     if (curr_running->pid != 0){
         // Update new priority if priority is not low
@@ -267,6 +296,7 @@ void quantum() {
     }
 }
 
+// Send (S command)
 int send(int rcv_id, char* message) {
     // Check if the rcv_id exists
     List_first(all_jobs);
@@ -286,7 +316,7 @@ int send(int rcv_id, char* message) {
     // Set up print info
     char send[1000];
     int curr_pid = curr_running->pid;
-    sprintf(send, "Message received from process ID %d: ", curr_pid);
+    sprintf(send, "Message received from process ID %d: \n", curr_pid);
 
     // Search for the recv process in receive_queue
     List_first(receive_queue);
@@ -296,11 +326,11 @@ int send(int rcv_id, char* message) {
         strcpy(rcv_process->proc_message, strcat(send, message));
         toReadyQueue(rcv_process);
 
-        // Remove process from receive wait
+        // Remove process from receive_queue
         List_remove(receive_queue);
     }
     else{
-        // If no process found in recv wait, append the message and the rcv_id in packet_list
+        // If no process found in receive_queue, append the message and the rcv_id in packet_list
         packet* send_packet = (packet*)malloc(sizeof(packet));
 
         send_packet->rcv_id = rcv_id;
@@ -313,11 +343,12 @@ int send(int rcv_id, char* message) {
     List_prepend(send_queue, curr_running);
     List_prepend(all_jobs, curr_running);
     getProcess();
-    printf("Process is blocked in send queue!");
+    printf("Process is blocked in send queue!\n");
 
     return SUCCESS;
 }
 
+// Reply (Y)
 int reply(int rcv_id, char* message) {
     // Check if the rcv_id exists
     List_first(all_jobs);
@@ -330,19 +361,19 @@ int reply(int rcv_id, char* message) {
         return FAIL;
     }
 
-    // Search for the send wait process
+    // Search for the send_queue process
     List_first(send_queue);
     PCB* send_wait_process = List_search(send_queue, searchPid, &rcv_id);
     if (send_wait_process != NULL){
         // Unblock send process and put back to ready queue
         char reply[1000];
         int curr_pid = curr_running->pid;
-        sprintf(reply, "Reply received from process ID %d: ", curr_pid);
+        sprintf(reply, "Reply received from process ID %d: \n", curr_pid);
         
         strcpy(send_wait_process->proc_message, strcat(reply, message));
         toReadyQueue(send_wait_process);
 
-        // Remove process from send wait
+        // Remove process from send_queue
         List_remove(send_queue);
 
         // If current running is init process, put it back to ready and get a new running process
@@ -352,14 +383,15 @@ int reply(int rcv_id, char* message) {
         }
     }
     else{
-        // If no process found in send wait, return fail
-        printf("Error, there is no process waiting for reply");
+        // If no process found in send_queue, return fail
+        printf("Error, there is no process waiting for reply\n");
         return FAIL;
     }
 
     return SUCCESS;
 }
 
+// Receive (R command)
 int receive(){
     // Check if init process call receive
     if (curr_running->pid == 0) {
@@ -384,12 +416,13 @@ int receive(){
         List_prepend(receive_queue, curr_running);
         List_prepend(all_jobs, curr_running);
         getProcess();
-        printf("Process is blocked in receive wait queue!");
+        printf("Process is blocked in receive wait queue!\n");
     }
 
     return SUCCESS;
 }
 
+// Create new semaphore (N command)
 int newSemaphore(int sid, int value) {
     // Check if semaphore ID is from 0 - 4
     if (sid < 0 || sid > 4) { 
@@ -427,6 +460,7 @@ int newSemaphore(int sid, int value) {
     return SUCCESS;
 }
 
+// Call semaphore P (P command)
 int semaphoreP(int sid) {
     // Search for targeted semaphore
     List_first(all_semaphores);
@@ -472,6 +506,7 @@ int semaphoreP(int sid) {
     return SUCCESS;
 }
 
+// Call semaphore V (V command)
 int semaphoreV(int sid) {
     // Search for targeted semaphore
     List_first(all_semaphores);
@@ -509,6 +544,7 @@ int semaphoreV(int sid) {
     return SUCCESS;
 }
 
+// Process Information (I command)
 int procInfo(int pid) {
     // Search for process
     List_first(all_jobs);
@@ -533,21 +569,7 @@ int procInfo(int pid) {
     return SUCCESS;
 }
 
-void printList(List* list) {
-    List_last(list);
-    while(List_curr(list) != NULL){
-        PCB* item = List_curr(list);
-        printf("Process ID: %d\n", item->pid);
-        printf("    Priority: %d (0 - High, 1 - Medium, 2 - Low)\n", item->priority);
-        printf("    State: %s\n", item->state);
-        printf("    Message: %s\n", item->proc_message);
-        List_prev(list);
-    }
-    if (List_count(list) == 0) {
-        printf("No process in this queue.\n");
-    }
-}
-
+// Total Information (T command)
 void totalInfo(){
     printf("\n## Current running process is:##\n");
     procInfo(curr_running->pid);
@@ -579,6 +601,11 @@ void totalInfo(){
     }
 }
 
+
+////////////////////////////////////////////////////////////////
+////////////////////////// MAIN DRIVER /////////////////////////
+////////////////////////////////////////////////////////////////
+
 int main() {
 
     // startUp() called
@@ -586,9 +613,10 @@ int main() {
     
     // Print direction to screen:
     printf("Process Scheduling Simulation\n");
-    printf("Please input your command and then enter. Input '!' to end program.\n");
 
     while(1){
+        printf("\nPlease input your command and then enter: ");
+
         // Check init process
         checkInit();
 
@@ -638,19 +666,6 @@ int main() {
                 printf("Success\n");
             }
         }
-        if(command == 'L' || command == 'l'){
-            List* queues = List_create();
-            List_prepend(queues, high_priority);
-            List_prepend(queues, medium_priority);
-            List_prepend(queues, low_priority);
-            List_prepend(queues, send_queue);
-            List_prepend(queues, receive_queue);
-            while(List_curr(queues) != NULL){
-                List* list = List_curr(queues);
-                printList(list);
-                List_next(queues);
-            }
-        }
         if (command == 'E' || command == 'e') {
             if (curr_running->pid == 0 && List_count(all_jobs) == 0){
                 // Terminate the program and free memory
@@ -659,28 +674,23 @@ int main() {
                 break;
             }
             if (curr_running->pid == 0 && List_count(all_jobs) != 0){
-                printf("WARNING! Program cannot be terminated because there are still some processes blocked somewhere! Kill them all before exiting!\n");
+                printf("WARNING! Program cannot be terminated because there are still some processes blocked somewhere! Check with T command and kill them all before exiting!\n");
                 continue;
             }
-            // current runnning is not init and there is no jobs left
-            if (curr_running->pid != 0 && List_count(all_jobs) == 0){
-                strcpy(init_process->state, "running");
-                free(curr_running);
-                curr_running = init_process;
-            }
-            else if (curr_running->pid != 0){
-                // free current process
-                free(curr_running);
-                curr_running = getProcess();
-            }
-            printf("Exit successful\n");
+
+            // Print scheduling info and free process
+            printf("Process ID: %d exited.\n", curr_running->pid);
+            free(curr_running);
+            getProcess();
+
+            printf("Exited successfully\n");
         }
         if (command == 'Q' || command == 'q') {
             printf("You called Quantum!\n");
             
             quantum();
 
-            printf("Quantum successful\n");
+            printf("Called quantum successfully\n");
         }
         if (command == 'S' || command == 's') {
             printf("You chose Send command, please input process ID and message with a space in between ('id' 'message'): ");
@@ -692,7 +702,7 @@ int main() {
             strcpy(message, &input_message[2]);
 
             if (send(rcv_id, message) == SUCCESS) {
-                printf("Send successfull!\n");
+                printf("Sent successfully!\n");
             }
             else{
                 printf("Send failed!\n");
@@ -703,7 +713,7 @@ int main() {
 
 
             if (receive() == SUCCESS) {
-                printf("Receive successfull!\n");
+                printf("Received successfully!\n");
             }
             else{
                 printf("Receive failed!\n");
@@ -719,7 +729,7 @@ int main() {
             strcpy(message, &input_message[2]);
 
             if (reply(rcv_id, message) == SUCCESS) {
-                printf("Reply successfull!\n");
+                printf("Replied successfully!\n");
             }
             else{
                 printf("Reply failed!\n");
@@ -798,9 +808,6 @@ int main() {
         }
         if (command == 'T' || command == 't') {
             totalInfo();
-        }
-        if (command == '!') {
-
         }
     }
     return 0; 
