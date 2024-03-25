@@ -337,6 +337,12 @@ int reply(int rcv_id, char* message) {
 
         // Remove process from send wait
         List_remove(send_queue);
+
+        // If current running is init process, put it back to ready and get a new running process
+        if (curr_pid == 0){
+            strcpy(curr_running->state, "ready");
+            getProcess();
+        }
     }
     else{
         // If no process found in send wait, return fail
@@ -371,6 +377,7 @@ int receive(){
         List_prepend(receive_queue, curr_running);
         List_prepend(all_jobs, curr_running);
         getProcess();
+        printf("Process is blocked in receive wait queue!");
     }
 
     return SUCCESS;
@@ -492,7 +499,6 @@ int semaphoreV(int sid) {
     } else {
         printf("No process was waken up.\n");
     }
-
     return SUCCESS;
 }
 
@@ -640,11 +646,14 @@ int main() {
         }
         if (command == 'E' || command == 'e') {
             if (curr_running->pid == 0 && List_count(all_jobs) == 0){
-                // Terminate the program
+                // Terminate the program and free memory
                 terminateProgram();
-                // Free
                 printf("Program terminated!\n");
                 break;
+            }
+            if (curr_running->pid == 0 && List_count(all_jobs) != 0){
+                printf("WARNING! Program cannot be terminated because there are still some processes blocked somewhere! Kill them all before exiting!\n");
+                continue;
             }
             // current runnning is not init and there is no jobs left
             if (curr_running->pid != 0 && List_count(all_jobs) == 0){
@@ -681,8 +690,7 @@ int main() {
             else{
                 printf("Send failed!\n");
             }
-        }
-      
+        }  
         if (command == 'R' || command == 'r') {
             printf("You chose Receive command!\n");
 
@@ -694,7 +702,6 @@ int main() {
                 printf("Receive failed!\n");
             }
         }
-      
         if (command == 'Y' || command == 'y') {
             printf("You chose Reply command, please input process ID and message with a space in between ('id' 'message'): ");
             // Get receive id with message and separate those two
@@ -789,6 +796,5 @@ int main() {
 
         }
     }
-
     return 0; 
 }
